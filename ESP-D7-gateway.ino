@@ -393,9 +393,10 @@ void handleRoot() {
   htmlPage += mqttBrokerString;
   htmlPage += mqtt_broker_string;
   htmlPage += mqttUserString;
-  htmlPage += mqtt_user_string;
+  // we could fill in user and password up front so users can make easy changes. This will, however, send them in plaintext and thus expose them to the network
+  //htmlPage += mqtt_user_string;
   htmlPage += mqttPasswordString;
-  htmlPage += mqtt_password_string;
+  //htmlPage += mqtt_password_string;
   htmlPage += mqttSubmitString;
 
   server.send(200, "text/html", htmlPage);
