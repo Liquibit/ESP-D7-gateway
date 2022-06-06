@@ -2,6 +2,7 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <EEPROM.h>
+#include <PubSubClient.h>
 
 #define ESP_BUSY_PIN 13
 
@@ -17,6 +18,11 @@
 
 #define MAX_CHAR_SIZE 100
 #define MAX_SERIAL_BUFFER_SIZE 256
+
+WiFiClient wifi_client;
+PubSubClient mqtt_client(wifi_client);
+static bool valid_mqtt_broker = false;
+static bool mqtt_auth = false;
 
 const char* ssid = "Dash7-gateway";
 
@@ -45,7 +51,7 @@ static uint8_t packet_type;
 
 static uint8_t current_uid[8];
 
-#define MAGIC_NUMBER 249
+#define MAGIC_NUMBER 248
 
 #define WIFI_TIMEOUT 20000
 #define WIFI_DELAY_RETRY 500
@@ -170,6 +176,8 @@ void init_credentials_eeprom()
     mqtt_password_string[i] = EEPROM.read(offset);
     offset += 1;
   }
+
+  valid_mqtt_broker = (mqtt_broker_length > 0);
 }
 
 void setup() 
@@ -198,7 +206,19 @@ void setup()
   server.on("/change", HTTP_POST, handlePost);
   server.onNotFound(handleRoot);
 
+  mqtt_client.setCallback(downlink);
+
   Serial.println("setup complete");
+}
+
+void set_mqtt_broker_address() {  
+  if(valid_mqtt_broker) {
+    IPAddress serverIp = MDNS.queryHost(mqtt_broker_string);
+    if(serverIp.toString().equals("0.0.0.0"))
+      mqtt_client.setServer(mqtt_broker_string, 1883);
+    else
+      mqtt_client.setServer(serverIp, 1883);
+  }
 }
 
 bool check_connection() {
@@ -241,18 +261,37 @@ bool check_connection() {
     return true;
 }
 
+bool check_mqtt_connection() {
+  if(!mqtt_client.connected()) {
+    set_mqtt_broker_address();
+    if(mqtt_client.connect("Dash7-Gateway", mqtt_user_string, mqtt_password_string)) {
+      //reconnect on subscriptions
+      Serial.println("connected to MQTT");
+      return true;
+    } else
+      return false;
+  } else
+    return true;
+}
+
 void loop() 
 {
   if(check_connection()) {
-    digitalWrite(ESP_BUSY_PIN, LOW);
-    while(Serial2.available()) {
-      serial_buffer[serial_index_end] = Serial2.read();
-      serial_index_end++;
+    if(valid_mqtt_broker && check_mqtt_connection()) {
+      digitalWrite(ESP_BUSY_PIN, LOW);
+      while(Serial2.available()) {
+        serial_buffer[serial_index_end] = Serial2.read();
+        serial_index_end++;
+      }
+      serial_parse();
+      mqtt_client.loop();
     }
-    serial_parse();
-    // connected! start parsing and forwarding!
   }
   server.handleClient();
+}
+
+void downlink(char* topic, byte* message, unsigned int length) {
+  
 }
 
 uint16_t get_serial_size()
@@ -430,6 +469,9 @@ void handlePost() {
     mqtt_password_length = pw.length();
     pw.toCharArray(mqtt_password_string,mqtt_password_length+1); 
   }
+  
+  valid_mqtt_broker = (mqtt_broker_length > 0);
+  set_mqtt_broker_address();
 
   write_credentials_to_eeprom();
 
