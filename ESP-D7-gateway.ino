@@ -51,6 +51,12 @@ static uint8_t packet_type;
 
 static uint8_t current_uid[8];
 
+static uint16_t last_voltage;
+static bool last_state;
+static char file_uid_string[MAX_CHAR_SIZE];
+static char file_name_string[MAX_CHAR_SIZE];
+static char homeassistant_component[20];
+
 #define MAGIC_NUMBER 248
 
 #define WIFI_TIMEOUT 20000
@@ -329,6 +335,11 @@ void serial_parse()
         default: //alp
           digitalWrite(ESP_BUSY_PIN, HIGH);
           alp_parse();
+          uint8_t empty_array[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+          if(memcmp(current_uid, empty_array, 8)) {
+            create_and_send_json();
+            memcpy(current_uid, empty_array, 8);
+          }
           digitalWrite(ESP_BUSY_PIN, LOW);
           break;
       }
@@ -402,6 +413,11 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
     case FILE_ID_BUTTON:;
       button_file_t button_file;
       memcpy_serial_overflow(button_file.bytes, length);
+      last_voltage = button_file.battery_voltage;
+      last_state = (bool) (1 << button_file.button_id) & button_file.buttons_state;
+      sprintf(file_uid_string, "_button%d", button_file.button_id);
+      sprintf(file_name_string, "Button_%d", button_file.button_id);
+      sprintf(homeassistant_component, "binary_sensor");
       Serial.print("button file: button id ");
       Serial.print(button_file.button_id);
       Serial.print(", buttons state ");
@@ -410,8 +426,46 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
     case FILE_ID_PIR:;
       pir_file_t pir_file;
       memcpy_serial_overflow(pir_file.bytes, length);
+      last_voltage = pir_file.battery_voltage;
+      last_state = pir_file.state;
+      sprintf(homeassistant_component, "binary_sensor");
+      sprintf(file_name_string, "Pir_state");
+      sprintf(file_uid_string, "_pir");
       break;
   }
+}
+
+static void create_and_send_json()
+{
+  static char device_uid[16];
+  static char device_string[MAX_CHAR_SIZE];
+  static char unique_id[32];
+  static char state_topic[80];
+  static char state_string[10];
+  static char config_topic[80];
+  static char config_json[MAX_CHAR_SIZE * 2];
+  sprintf(device_uid, "%02X%02X%02X%02X%02X%02X%02X%02X", current_uid[0], current_uid[1], current_uid[2], current_uid[3], current_uid[4], current_uid[5], current_uid[6], current_uid[7]);
+  sprintf(device_string, "'manufacturer': 'LiQuiBit', 'name': 'Push7_%s', 'identifiers': ['%s']", device_uid, device_uid);
+  sprintf(unique_id, "%s%s", device_uid, file_uid_string);
+  sprintf(state_topic, "homeassistant/%s/%s/state", homeassistant_component, unique_id);
+  sprintf(config_topic, "homeassistant/%s/%s/config", homeassistant_component, unique_id);
+  sprintf(config_json, "{'device': { %s }, 'name': '%s', 'qos': 1, 'unique_id': '%s', 'state_topic': '%s' }", 
+    device_string, file_name_string, unique_id, state_topic);
+  sprintf(state_string, "%s", last_state ? "ON" : "OFF");
+
+  if(!mqtt_client.publish(config_topic, config_json, true))
+    return;
+  mqtt_client.publish(state_topic, state_string, true);
+
+  sprintf(unique_id, "%s_voltage", device_uid);
+  sprintf(state_topic, "homeassistant/%s/%s/state", "sensor", unique_id);
+  sprintf(config_topic, "homeassistant/%s/%s/config", "sensor", unique_id);
+  sprintf(config_json, "{'device': { %s }, 'name': 'voltage', 'qos': 1, 'unique_id': '%s', 'entity_category': 'diagnostic', 'state_topic': '%s', 'state_class': 'measurement', 'unit_of_measurement': 'mV', 'icon': 'mdi:sine-wave' }", 
+    device_string, unique_id, state_topic);
+
+  if(!mqtt_client.publish(config_topic, config_json, true))
+    return;
+  mqtt_client.publish(state_topic, state_string, true);
 }
 
 const String first = "<form action=\"change\" method=\"POST\"><div><table width=\"100%\">";
