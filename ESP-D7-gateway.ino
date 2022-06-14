@@ -18,6 +18,12 @@
 
 #define MAX_CHAR_SIZE 100
 #define MAX_SERIAL_BUFFER_SIZE 256
+#define MAX_MQTT_LENGTH 20
+
+//#define DPRINT(...) Serial.print(__VA_ARGS__)
+//#define DPRINTLN(...) Serial.println(__VA_ARGS__)
+#define DPRINT(...)
+#define DPRINTLN(...)
 
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);
@@ -55,9 +61,9 @@ static uint16_t last_voltage;
 static bool last_state;
 static char file_uid_string[MAX_CHAR_SIZE];
 static char file_name_string[MAX_CHAR_SIZE];
-static char homeassistant_component[20];
+static char homeassistant_component[MAX_CHAR_SIZE];
 
-#define MAGIC_NUMBER 248
+#define MAGIC_NUMBER 247
 
 #define WIFI_TIMEOUT 20000
 #define WIFI_DELAY_RETRY 500
@@ -138,7 +144,7 @@ void init_credentials_eeprom()
 {  
   int offset = 0;
   if(EEPROM.read(offset) != MAGIC_NUMBER) {
-    Serial.println("first byte is not magic number, broadcasting for credentials");
+    DPRINTLN("first byte is not magic number, broadcasting for credentials");
     ssid_length = 0;
     password_length = 0;
     mqtt_broker_length = 0;
@@ -214,7 +220,7 @@ void setup()
 
   mqtt_client.setCallback(downlink);
 
-  Serial.println("setup complete");
+  DPRINTLN("setup complete");
 }
 
 void set_mqtt_broker_address() {  
@@ -255,7 +261,7 @@ bool check_connection() {
       delay(WIFI_DELAY_RETRY);
       total_delay += WIFI_DELAY_RETRY;
     }
-    Serial.println("connected to Wi-Fi");
+    DPRINTLN("connected to Wi-Fi");
 
     if(WiFi.status() == WL_CONNECTED) {
       WiFi.mode(WIFI_STA);
@@ -272,7 +278,7 @@ bool check_mqtt_connection() {
     set_mqtt_broker_address();
     if(mqtt_client.connect("Dash7-Gateway", mqtt_user_string, mqtt_password_string)) {
       //reconnect on subscriptions
-      Serial.println("connected to MQTT");
+      DPRINTLN("connected to MQTT");
       return true;
     } else
       return false;
@@ -319,8 +325,8 @@ void serial_parse()
         header_parsed = true;
         serial_index_start += MODEM_HEADER_SIZE - 5;
       } else {
-        Serial.print("not header material ");
-        Serial.println(serial_buffer[serial_index_start]);
+        DPRINT("not header material ");
+        DPRINTLN(serial_buffer[serial_index_start]);
         serial_index_start++;
       }
     }
@@ -328,8 +334,8 @@ void serial_parse()
     if(get_serial_size() >= payload_length) {
       switch(packet_type){
         case 5: //reboot
-          Serial.print("Modem rebooted with reason ");
-          Serial.println(serial_buffer[serial_index_start]);
+          DPRINT("Modem rebooted with reason ");
+          DPRINTLN(serial_buffer[serial_index_start]);
           serial_index_start += 1;
           break;
         default: //alp
@@ -385,21 +391,21 @@ void alp_parse()
           serial_index_start += 7;
           memcpy_serial_overflow(current_uid, 8);
           serial_index_start += 8;
-          Serial.print("current id ");
-          Serial.print(current_uid[0], HEX);
-          Serial.print(current_uid[1], HEX);
-          Serial.print(current_uid[2], HEX);
-          Serial.print(current_uid[3], HEX);
-          Serial.print(current_uid[4], HEX);
-          Serial.print(current_uid[5], HEX);
-          Serial.print(current_uid[6], HEX);
-          Serial.println(current_uid[7], HEX);
+          DPRINT("current id ");
+          DPRINT(current_uid[0], HEX);
+          DPRINT(current_uid[1], HEX);
+          DPRINT(current_uid[2], HEX);
+          DPRINT(current_uid[3], HEX);
+          DPRINT(current_uid[4], HEX);
+          DPRINT(current_uid[5], HEX);
+          DPRINT(current_uid[6], HEX);
+          DPRINTLN(current_uid[7], HEX);
           
           payload_length -= 3 + length;
           break;
         }
       default: //not implemented alp
-        Serial.println("unknown alp command, skipping message");
+        DPRINTLN("unknown alp command, skipping message");
         serial_index_start += payload_length - 1; // alp command is already parsed
         payload_length = 0;
         break;
@@ -414,14 +420,14 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       button_file_t button_file;
       memcpy_serial_overflow(button_file.bytes, length);
       last_voltage = button_file.battery_voltage;
-      last_state = (bool) (1 << button_file.button_id) & button_file.buttons_state;
+      last_state = (bool) ((1 << button_file.button_id) & button_file.buttons_state);
       sprintf(file_uid_string, "_button%d", button_file.button_id);
       sprintf(file_name_string, "Button_%d", button_file.button_id);
       sprintf(homeassistant_component, "binary_sensor");
-      Serial.print("button file: button id ");
-      Serial.print(button_file.button_id);
-      Serial.print(", buttons state ");
-      Serial.println(button_file.buttons_state);
+      DPRINT("button file: button id ");
+      DPRINT(button_file.button_id);
+      DPRINT(", buttons state ");
+      DPRINTLN(button_file.buttons_state);
       break;
     case FILE_ID_PIR:;
       pir_file_t pir_file;
@@ -436,36 +442,89 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
 }
 
 static void create_and_send_json()
-{
+{  
   static char device_uid[16];
-  static char device_string[MAX_CHAR_SIZE];
+  static char device_string[MAX_CHAR_SIZE*2];
   static char unique_id[32];
-  static char state_topic[80];
-  static char state_string[10];
-  static char config_topic[80];
-  static char config_json[MAX_CHAR_SIZE * 2];
+  static char state_topic[MAX_CHAR_SIZE];
+  static char state_string[MAX_CHAR_SIZE];
+  static char config_topic[MAX_CHAR_SIZE];
+  static char config_json[800];
   sprintf(device_uid, "%02X%02X%02X%02X%02X%02X%02X%02X", current_uid[0], current_uid[1], current_uid[2], current_uid[3], current_uid[4], current_uid[5], current_uid[6], current_uid[7]);
-  sprintf(device_string, "'manufacturer': 'LiQuiBit', 'name': 'Push7_%s', 'identifiers': ['%s']", device_uid, device_uid);
+  sprintf(device_string, "\"manufacturer\":\"LiQuiBit\",\"name\":\"Push7_%s\",\"identifiers\":[\"%s\"],\"model\":\"Push7\"", device_uid, device_uid);
   sprintf(unique_id, "%s%s", device_uid, file_uid_string);
   sprintf(state_topic, "homeassistant/%s/%s/state", homeassistant_component, unique_id);
   sprintf(config_topic, "homeassistant/%s/%s/config", homeassistant_component, unique_id);
-  sprintf(config_json, "{'device': { %s }, 'name': '%s', 'qos': 1, 'unique_id': '%s', 'state_topic': '%s' }", 
+  sprintf(config_json, "{\"device\":{%s},\"name\":\"%s\",\"qos\":1,\"unique_id\":\"%s\",\"state_topic\":\"%s\"}", 
     device_string, file_name_string, unique_id, state_topic);
   sprintf(state_string, "%s", last_state ? "ON" : "OFF");
 
-  if(!mqtt_client.publish(config_topic, config_json, true))
+ 
+//  if(!mqtt_client.publish(config_topic, config_json, true)) {
+//    DPRINTLN("publish of config binary sensor failed");
+//    return;
+//  }
+  if(!mqtt_client.beginPublish(config_topic, strlen(config_json), true)) {
+    DPRINTLN("begin publish went wrong, abort");
     return;
-  mqtt_client.publish(state_topic, state_string, true);
+  }
+  for(uint16_t i = 0; i < strlen(config_json); i += MAX_MQTT_LENGTH) {
+    uint16_t remaining_length = strlen(config_json) - i;
+    mqtt_client.write((const uint8_t*)&config_json[i], remaining_length < MAX_MQTT_LENGTH ? remaining_length : MAX_MQTT_LENGTH);
+  }
+  if(!mqtt_client.endPublish()) {
+    DPRINTLN("end publish went wrong, abort");
+    return;
+  }
+  if(!mqtt_client.publish(state_topic, state_string, true)) {
+    DPRINTLN("publish of state binary sensor failed");
+    return;
+  }
+  DPRINTLN("config and state of file sent");
+
+/*
+  DPRINT("config topic: ");
+  DPRINTLN(config_topic);
+  DPRINTLN(config_json);
+  DPRINT("state : ");
+  DPRINTLN(state_topic);
+  DPRINTLN(state_string);
+*/
 
   sprintf(unique_id, "%s_voltage", device_uid);
   sprintf(state_topic, "homeassistant/%s/%s/state", "sensor", unique_id);
   sprintf(config_topic, "homeassistant/%s/%s/config", "sensor", unique_id);
-  sprintf(config_json, "{'device': { %s }, 'name': 'voltage', 'qos': 1, 'unique_id': '%s', 'entity_category': 'diagnostic', 'state_topic': '%s', 'state_class': 'measurement', 'unit_of_measurement': 'mV', 'icon': 'mdi:sine-wave' }", 
+  sprintf(config_json, "{\"device\":{%s},\"name\":\"voltage\",\"qos\":1,\"unique_id\":\"%s\",\"entity_category\":\"diagnostic\",\"state_topic\":\"%s\",\"state_class\":\"measurement\",\"unit_of_measurement\":\"mV\",\"icon\":\"mdi:sine-wave\"}", 
     device_string, unique_id, state_topic);
+  sprintf(state_string, "%d", last_voltage);
 
-  if(!mqtt_client.publish(config_topic, config_json, true))
+  if(!mqtt_client.beginPublish(config_topic, strlen(config_json), true)) {
+    DPRINTLN("begin publish went wrong, abort");
     return;
-  mqtt_client.publish(state_topic, state_string, true);
+  }
+  for(uint16_t i = 0; i < strlen(config_json); i += MAX_MQTT_LENGTH) {
+    uint16_t remaining_length = strlen(config_json) - i;
+    mqtt_client.write((const uint8_t*)&config_json[i], remaining_length < MAX_MQTT_LENGTH ? remaining_length : MAX_MQTT_LENGTH);
+  }
+  if(!mqtt_client.endPublish()) {
+    DPRINTLN("end publish went wrong, abort");
+    return;
+  }
+  if(!mqtt_client.publish(state_topic, state_string, true)) {
+    DPRINTLN("publish of state voltage failed");
+    return;
+  }
+  DPRINTLN("config and state of voltage sent");
+  
+
+/*  
+  DPRINT("config topic 2 : ");
+  DPRINTLN(config_topic);
+  DPRINTLN(config_json);
+  DPRINT("state : ");
+  DPRINTLN(state_topic);
+  DPRINTLN(state_string);
+  */
 }
 
 const String first = "<form action=\"change\" method=\"POST\"><div><table width=\"100%\">";
