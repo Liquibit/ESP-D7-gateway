@@ -4,6 +4,8 @@
 #include <EEPROM.h>
 #include <PubSubClient.h>
 
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO
+
 #define ESP_BUSY_PIN 13
 
 #define MODEM_HEADER_SIZE 7
@@ -20,10 +22,30 @@
 #define MAX_SERIAL_BUFFER_SIZE 256
 #define MAX_MQTT_LENGTH 20
 
+#define MQTT_PORT 1883
+
+//#define DBEGIN(...) Serial.begin(__VA_ARGS__)
 //#define DPRINT(...) Serial.print(__VA_ARGS__)
 //#define DPRINTLN(...) Serial.println(__VA_ARGS__)
-#define DPRINT(...)
-#define DPRINTLN(...)
+//#define DBEGIN(...)
+//#define DPRINT(...)
+//#define DPRINTLN(...)
+
+//#define DATAPRINT(...) Serial2.print(__VA_ARGS__)
+//#define DATAPRINTLN(...) Serial2.println(__VA_ARGS__)
+//#define DATAREAD(...) Serial2.read(__VA_ARGS__)
+//#define DATAREADY(...) Serial2.available()
+//#define DATABEGIN(...) Serial2.begin(__VA_ARGS__)
+#define DATAPRINT(...) Serial.print(__VA_ARGS__)
+#define DATAPRINTLN(...) Serial.println(__VA_ARGS__)
+#define DATAREAD(...) Serial.read(__VA_ARGS__)
+#define DATAREADY(...) Serial.available()
+#define DATABEGIN(...) Serial.begin(__VA_ARGS__)
+//#define DATAPRINT(...)
+//#define DATAPRINTLN(...)
+//#define DATAREAD(...)
+//#define DATAREADY(...)
+//#define DATABEGIN(...)
 
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);
@@ -195,14 +217,15 @@ void init_credentials_eeprom()
 void setup() 
 {
   // the esp should report busy as long as it does not have an internet connection
-  pinMode(ESP_BUSY_PIN, OUTPUT);
-  digitalWrite(ESP_BUSY_PIN, HIGH);
+//  pinMode(ESP_BUSY_PIN, OUTPUT);
+//  digitalWrite(ESP_BUSY_PIN, HIGH);
 
-  Serial2.begin(115200);
+  DBEGIN(115200);
   
-  Serial.begin(115200);
+  DATABEGIN(115200);
 
   EEPROM.begin(512);
+
   
   WiFi.mode(WIFI_MODE_APSTA);
   WiFi.disconnect();
@@ -227,9 +250,9 @@ void set_mqtt_broker_address() {
   if(valid_mqtt_broker) {
     IPAddress serverIp = MDNS.queryHost(mqtt_broker_string);
     if(serverIp.toString().equals("0.0.0.0"))
-      mqtt_client.setServer(mqtt_broker_string, 1883);
+      mqtt_client.setServer(mqtt_broker_string, MQTT_PORT);
     else
-      mqtt_client.setServer(serverIp, 1883);
+      mqtt_client.setServer(serverIp, MQTT_PORT);
   }
 }
 
@@ -286,13 +309,13 @@ bool check_mqtt_connection() {
     return true;
 }
 
-void loop() 
+void loop()
 {
   if(check_connection()) {
     if(valid_mqtt_broker && check_mqtt_connection()) {
-      digitalWrite(ESP_BUSY_PIN, LOW);
-      while(Serial2.available()) {
-        serial_buffer[serial_index_end] = Serial2.read();
+//      digitalWrite(ESP_BUSY_PIN, LOW);
+      while(DATAREADY()) {
+        serial_buffer[serial_index_end] = DATAREAD();
         serial_index_end++;
       }
       serial_parse();
@@ -339,14 +362,14 @@ void serial_parse()
           serial_index_start += 1;
           break;
         default: //alp
-          digitalWrite(ESP_BUSY_PIN, HIGH);
+//          digitalWrite(ESP_BUSY_PIN, HIGH);
           alp_parse();
           uint8_t empty_array[8] = {0, 0, 0, 0, 0, 0, 0, 0};
           if(memcmp(current_uid, empty_array, 8)) {
             create_and_send_json();
             memcpy(current_uid, empty_array, 8);
           }
-          digitalWrite(ESP_BUSY_PIN, LOW);
+//          digitalWrite(ESP_BUSY_PIN, LOW);
           break;
       }
       header_parsed = false;
