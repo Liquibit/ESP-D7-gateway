@@ -25,9 +25,9 @@
 #define MQTT_PORT 1883
 
 //#define DBEGIN(...) Serial.begin(__VA_ARGS__)
-//#define DPRINT(...) Serial.print(__VA_ARGS__)
-//#define DPRINTLN(...) Serial.println(__VA_ARGS__)
-//#define DBEGIN(...)
+#define DPRINT(...) Serial.print(__VA_ARGS__)
+#define DPRINTLN(...) Serial.println(__VA_ARGS__)
+#define DBEGIN(...)
 //#define DPRINT(...)
 //#define DPRINTLN(...)
 
@@ -466,7 +466,7 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
 
 static void create_and_send_json()
 {  
-  static char device_uid[16];
+  static char device_uid[20];
   static char device_string[MAX_CHAR_SIZE*2];
   static char unique_id[32];
   static char state_topic[MAX_CHAR_SIZE];
