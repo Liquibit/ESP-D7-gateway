@@ -3,6 +3,7 @@
 #include <ESPmDNS.h>
 #include <EEPROM.h>
 #include <PubSubClient.h>
+#include <Dns.h>
 
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
@@ -22,7 +23,7 @@
 #define MAX_SERIAL_BUFFER_SIZE 256
 #define MAX_MQTT_LENGTH 20
 
-#define MQTT_PORT 1883
+#define DEFAULT_MQTT_PORT 1883
 
 //#define DBEGIN(...) Serial.begin(__VA_ARGS__)
 #define DPRINT(...) Serial.print(__VA_ARGS__)
@@ -49,6 +50,9 @@
 
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);
+const IPAddress public_dns_ip(8, 8, 8, 8);
+DNSClient dns_client;
+
 static bool valid_mqtt_broker = false;
 static bool mqtt_auth = false;
 
@@ -69,6 +73,8 @@ int mqtt_user_length;
 static char mqtt_password_string[MAX_CHAR_SIZE];
 int mqtt_password_length;
 
+static uint32_t mqtt_port;
+
 static unsigned char serial_buffer[MAX_SERIAL_BUFFER_SIZE];
 static uint8_t serial_index_start = 0;
 static uint8_t serial_index_end = 0;
@@ -81,11 +87,12 @@ static uint8_t current_uid[8];
 
 static uint16_t last_voltage;
 static bool last_state;
+static char raw_file_string[MAX_CHAR_SIZE*2];
 static char file_uid_string[MAX_CHAR_SIZE];
 static char file_name_string[MAX_CHAR_SIZE];
 static char homeassistant_component[MAX_CHAR_SIZE];
 
-#define MAGIC_NUMBER 247
+#define MAGIC_NUMBER 241
 
 #define WIFI_TIMEOUT 20000
 #define WIFI_DELAY_RETRY 500
@@ -159,11 +166,19 @@ void write_credentials_to_eeprom()
     EEPROM.write(offset, mqtt_password_string[i]);
     offset += 1;
   }
+  uint8_t mqtt_port_length = 4;
+  EEPROM.write(offset, mqtt_port_length);
+  offset += 1;
+  for(int i = 0; i < mqtt_port_length; i++) {
+    uint8_t* port_buf = (uint8_t*) &mqtt_port;
+    EEPROM.write(offset, port_buf[i]);
+    offset += 1;
+  }
   EEPROM.commit();
 }
 
 void init_credentials_eeprom()
-{  
+{
   int offset = 0;
   if(EEPROM.read(offset) != MAGIC_NUMBER) {
     DPRINTLN("first byte is not magic number, broadcasting for credentials");
@@ -172,6 +187,7 @@ void init_credentials_eeprom()
     mqtt_broker_length = 0;
     mqtt_user_length = 0;
     mqtt_password_length = 0;
+    mqtt_port = DEFAULT_MQTT_PORT;
     return;
   }
   offset += 1;
@@ -211,6 +227,14 @@ void init_credentials_eeprom()
     offset += 1;
   }
 
+  uint8_t mqtt_port_length = EEPROM.read(offset);
+  offset += 1;
+  for(int i = 0; i < mqtt_port_length; i++) {
+    uint8_t* mqtt_port_ptr = (uint8_t*) &mqtt_port;
+    mqtt_port_ptr[i] = EEPROM.read(offset);
+    offset += 1;
+  }
+
   valid_mqtt_broker = (mqtt_broker_length > 0);
 }
 
@@ -224,7 +248,7 @@ void setup()
   
   DATABEGIN(115200);
 
-  EEPROM.begin(512);
+  EEPROM.begin(612);
 
   
   WiFi.mode(WIFI_MODE_APSTA);
@@ -247,12 +271,19 @@ void setup()
 }
 
 void set_mqtt_broker_address() {  
+//  also allow public addresses
   if(valid_mqtt_broker) {
     IPAddress serverIp = MDNS.queryHost(mqtt_broker_string);
-    if(serverIp.toString().equals("0.0.0.0"))
-      mqtt_client.setServer(mqtt_broker_string, MQTT_PORT);
-    else
-      mqtt_client.setServer(serverIp, MQTT_PORT);
+    if(serverIp.toString().equals("0.0.0.0")) {
+      IPAddress public_ip;
+      if(WiFi.hostByName(mqtt_broker_string, public_ip)) {
+        mqtt_client.setServer(public_ip, mqtt_port);
+      } else {
+        DPRINTLN("No IP found");
+        mqtt_client.setServer(mqtt_broker_string, mqtt_port);
+      }
+    } else
+      mqtt_client.setServer(serverIp, mqtt_port);
   }
 }
 
@@ -288,6 +319,7 @@ bool check_connection() {
 
     if(WiFi.status() == WL_CONNECTED) {
       WiFi.mode(WIFI_STA);
+      dns_client.begin(public_dns_ip);
       return true;
     } else {
       return false;
@@ -444,6 +476,8 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       memcpy_serial_overflow(button_file.bytes, length);
       last_voltage = button_file.battery_voltage;
       last_state = (bool) ((1 << button_file.button_id) & button_file.buttons_state);
+      // indicate that last_state should be used
+      raw_file_string[0] = 0;
       sprintf(file_uid_string, "_button%d", button_file.button_id);
       sprintf(file_name_string, "Button_%d", button_file.button_id);
       sprintf(homeassistant_component, "binary_sensor");
@@ -457,9 +491,22 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       memcpy_serial_overflow(pir_file.bytes, length);
       last_voltage = pir_file.battery_voltage;
       last_state = pir_file.state;
+      // indicate that last_state should be used
+      raw_file_string[0] = 0;
       sprintf(homeassistant_component, "binary_sensor");
       sprintf(file_name_string, "Pir_state");
       sprintf(file_uid_string, "_pir");
+      break;
+    default:;
+      uint8_t raw_data[length];
+      memcpy_serial_overflow(raw_data, length);
+      sprintf(raw_file_string, "");
+      for(int i = 0; i < length; i++) {
+        sprintf(raw_file_string, "%s%02X", raw_file_string, raw_data[i]);
+      }
+      sprintf(file_name_string, "Unknown_state");
+      sprintf(file_uid_string, "_unknown");
+      sprintf(homeassistant_component, "sensor");
       break;
   }
 }
@@ -482,11 +529,6 @@ static void create_and_send_json()
     device_string, file_name_string, unique_id, state_topic);
   sprintf(state_string, "%s", last_state ? "ON" : "OFF");
 
- 
-//  if(!mqtt_client.publish(config_topic, config_json, true)) {
-//    DPRINTLN("publish of config binary sensor failed");
-//    return;
-//  }
   if(!mqtt_client.beginPublish(config_topic, strlen(config_json), true)) {
     DPRINTLN("begin publish went wrong, abort");
     return;
@@ -499,20 +541,42 @@ static void create_and_send_json()
     DPRINTLN("end publish went wrong, abort");
     return;
   }
+  // raw file should be sent as string and returns directly, it has no idea of contents so can't send voltage
+  if(raw_file_string[0]) {
+    if(!mqtt_client.beginPublish(raw_file_string, strlen(raw_file_string), true)) {
+      DPRINTLN("begin publish went wrong, abort");
+      return;
+    }
+    for(uint16_t i = 0; i < strlen(raw_file_string); i += MAX_MQTT_LENGTH) {
+      uint16_t remaining_length = strlen(raw_file_string) - i;
+      mqtt_client.write((const uint8_t*)&raw_file_string[i], remaining_length < MAX_MQTT_LENGTH ? remaining_length : MAX_MQTT_LENGTH);
+    }
+    if(!mqtt_client.endPublish()) {
+      DPRINTLN("end publish went wrong, abort");
+      return;
+    }
+    DPRINTLN("publish of raw succeeded");
+    return;
+  }
+  
   if(!mqtt_client.publish(state_topic, state_string, true)) {
     DPRINTLN("publish of state binary sensor failed");
     return;
   }
   DPRINTLN("config and state of file sent");
 
-/*
+  /*
   DPRINT("config topic: ");
   DPRINTLN(config_topic);
   DPRINTLN(config_json);
   DPRINT("state : ");
   DPRINTLN(state_topic);
-  DPRINTLN(state_string);
-*/
+  if(raw_file_string[0])
+    DPRINTLN(raw_file_string);
+  else
+    DPRINTLN(state_string);
+  */
+
 
   sprintf(unique_id, "%s_voltage", device_uid);
   sprintf(state_topic, "homeassistant/%s/%s/state", "sensor", unique_id);
@@ -558,6 +622,7 @@ const String WiFiCredentialsString = "<tr><th colspan=\"3\">Wi-Fi SSID</th></tr>
 const String mqttBrokerString = "<form action=\"change\" method=\"POST\"><div><table width=\"100%\"><tr><th colspan=\"3\">MQTT Broker</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"broker\" value=\"";
 const String mqttUserString = "\"</th></tr><tr><th colspan=\"3\">MQTT User</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"user\" value=\"";
 const String mqttPasswordString = "\"</th></tr><tr><th colspan=\"3\">MQTT Password</th></tr><tr><th colspan=\"3\"><input type=\"password\" name=\"mqttPassword\" value=\"";
+const String mqttPortString = "\"</th></tr><tr><th colspan=\"3\">MQTT Port</th></tr><tr><th colspan=\"3\"><input type=\"number\" name=\"mqttPort\" value=\"";
 const String mqttSubmitString = "\"</th></tr><tr><th colspan=\"3\"><input type=\"submit\" value=\"submit MQTT Details\"></th></tr></table></div></form>";
 
 void handleRoot() {
@@ -572,6 +637,8 @@ void handleRoot() {
   //htmlPage += mqtt_user_string;
   htmlPage += mqttPasswordString;
   //htmlPage += mqtt_password_string;
+  htmlPage += mqttPortString;
+  htmlPage += mqtt_port;
   htmlPage += mqttSubmitString;
 
   server.send(200, "text/html", htmlPage);
@@ -605,6 +672,10 @@ void handlePost() {
     mqtt_password_length = pw.length();
     pw.toCharArray(mqtt_password_string,mqtt_password_length+1); 
   }
+  if(server.hasArg("mqttPort")) {
+    mqtt_port = strtoul(server.arg("mqttPort").c_str(), NULL, 10);
+  }
+  
   
   valid_mqtt_broker = (mqtt_broker_length > 0);
   set_mqtt_broker_address();
