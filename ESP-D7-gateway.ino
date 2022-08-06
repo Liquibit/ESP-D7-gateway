@@ -89,7 +89,6 @@ static uint16_t last_voltage;
 static bool last_state;
 static char raw_file_string[MAX_CHAR_SIZE*2];
 static char file_uid_string[MAX_CHAR_SIZE];
-static char file_name_string[MAX_CHAR_SIZE];
 static char homeassistant_component[MAX_CHAR_SIZE];
 
 #define MAGIC_NUMBER 241
@@ -257,7 +256,7 @@ void setup()
   WiFi.softAP(ssid);
 
   server.begin();
-  MDNS.begin("gateway");
+  MDNS.begin("Dash7-gateway");
 
   init_credentials_eeprom();
   
@@ -479,7 +478,6 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       // indicate that last_state should be used
       raw_file_string[0] = 0;
       sprintf(file_uid_string, "_button%d", button_file.button_id);
-      sprintf(file_name_string, "Button_%d", button_file.button_id);
       sprintf(homeassistant_component, "binary_sensor");
       DPRINT("button file: button id ");
       DPRINT(button_file.button_id);
@@ -494,7 +492,6 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       // indicate that last_state should be used
       raw_file_string[0] = 0;
       sprintf(homeassistant_component, "binary_sensor");
-      sprintf(file_name_string, "Pir_state");
       sprintf(file_uid_string, "_pir");
       break;
     default:;
@@ -504,7 +501,6 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       for(int i = 0; i < length; i++) {
         sprintf(raw_file_string, "%s%02X", raw_file_string, raw_data[i]);
       }
-      sprintf(file_name_string, "Unknown_state");
       sprintf(file_uid_string, "_unknown");
       sprintf(homeassistant_component, "sensor");
       break;
@@ -526,7 +522,7 @@ static void create_and_send_json()
   sprintf(state_topic, "homeassistant/%s/%s/state", homeassistant_component, unique_id);
   sprintf(config_topic, "homeassistant/%s/%s/config", homeassistant_component, unique_id);
   sprintf(config_json, "{\"device\":{%s},\"name\":\"%s\",\"qos\":1,\"unique_id\":\"%s\",\"state_topic\":\"%s\"}", 
-    device_string, file_name_string, unique_id, state_topic);
+    device_string, unique_id, unique_id, state_topic);
   sprintf(state_string, "%s", last_state ? "ON" : "OFF");
 
   if(!mqtt_client.beginPublish(config_topic, strlen(config_json), true)) {
@@ -614,16 +610,79 @@ static void create_and_send_json()
   */
 }
 
-const String first = "<form action=\"change\" method=\"POST\"><div><table width=\"100%\">";
-const String postedString = "<tr><th colspan=\"3\" style=\"color: red\">Command sent to server!</th></tr>";
-const String WiFiCredentialsString = "<tr><th colspan=\"3\">Wi-Fi SSID</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"SSID\"></th></tr>"
-                                     "<tr><th colspan=\"3\">Password</th></tr><tr><th colspan=\"3\"><input type=\"password\" name=\"password\"></th></tr>"
-                                     "<tr></tr><tr><th colspan=\"3\"><input type=\"submit\" value=\"submit Wi-Fi credentials\"></th></tr></table></div></form><tr></tr>";
-const String mqttBrokerString = "<form action=\"change\" method=\"POST\"><div><table width=\"100%\"><tr><th colspan=\"3\">MQTT Broker</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"broker\" value=\"";
-const String mqttUserString = "\"</th></tr><tr><th colspan=\"3\">MQTT User</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"user\" value=\"";
-const String mqttPasswordString = "\"</th></tr><tr><th colspan=\"3\">MQTT Password</th></tr><tr><th colspan=\"3\"><input type=\"password\" name=\"mqttPassword\" value=\"";
-const String mqttPortString = "\"</th></tr><tr><th colspan=\"3\">MQTT Port</th></tr><tr><th colspan=\"3\"><input type=\"number\" name=\"mqttPort\" value=\"";
-const String mqttSubmitString = "\"</th></tr><tr><th colspan=\"3\"><input type=\"submit\" value=\"submit MQTT Details\"></th></tr></table></div></form>";
+const String first = "<head>" \
+    "<style type=\"text/css\">" \
+      "#container {" \
+        "margin: 0;" \
+        "position: absolute;" \
+        "top: 25%;" \
+        "left: 50%;" \
+        "transform: translate(-50%, -25%);" \
+        "width:400px;" \
+        "height:600px;" \
+      "}" \
+      "h1{" \
+        "text-align: center;" \
+        "padding:10px;" \
+      "}" \
+      "label, input{" \
+        "display:block;" \
+        "width:100%;" \
+      "}" \
+      "input {" \
+        "margin-bottom: 2em;" \
+      "}" \
+    "</style>" \
+  "</head>" \
+  "<body>" \
+    "<div id=\"container\">" \
+    "<h1>IoWay</h1>" \
+    "<form action=\"change\" method=\"POST\">";
+const String postedString = "<p style=\"color: red;\">Command sent to server!</p>";
+const String WiFiCredentialsString = "<div>" \
+        "<label for=\"SSID\">Wi-Fi SSID</label>" \
+        "<input type=\"text\" name=\"SSID\" />" \
+      "</div>" \
+      "<div>" \
+        "<label for=\"password\">Password</label>" \
+        "<input type=\"password\" name=\"password\" />" \
+      "</div>";
+const String mqttBrokerString = "<div>" \
+        "<label for=\"broker\">MQTT Broker</label>" \
+        "<input type=\"text\" name=\"broker\" value=\"";
+const String mqttUserString = "\" />" \
+      "</div>" \
+      "<div>" \
+        "<label for=\"user\">MQTT User</label>" \
+        "<input type=\"text\" name=\"user\" value=\"";
+const String mqttPasswordString = "\"/>" \
+      "</div>" \
+      "<div>" \
+        "<label for=\"mqttPassword\">MQTT Password</label>" \
+        "<input type=\"password\" name=\"mqttPassword\" value=\"";
+const String mqttPortString = "\"/>" \
+      "</div>" \
+      "<div>" \
+        "<label for=\"mqttPort\">MQTT Port</label>" \
+        "<input type=\"number\" name=\"mqttPort\" value=\"";
+const String mqttSubmitString = "\" />" \
+      "</div>" \
+      "<div>" \
+        "<input type=\"submit\" value=\"submit\" />" \
+      "</div>" \
+    "</form></div>" \
+  "</body>";
+
+
+// const String first = "<form action=\"change\" method=\"POST\"><div><table style=\"width: 100%;\">";
+// const String postedString = "<tr><th colspan=\"3\" style=\"color: red\">Command sent to server!</th></tr>";
+// const String WiFiCredentialsString = "<tr><th colspan=\"3\">Wi-Fi SSID</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"SSID\"></th></tr>"
+//                                      "<tr><th colspan=\"3\">Password</th></tr><tr><th colspan=\"3\"><input type=\"password\" name=\"password\"></th></tr><tr></tr>";
+// const String mqttBrokerString = "<tr><th colspan=\"3\">MQTT Broker</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"broker\" value=\"";
+// const String mqttUserString = "\"</th></tr><tr><th colspan=\"3\">MQTT User</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"user\" value=\"";
+// const String mqttPasswordString = "\"</th></tr><tr><th colspan=\"3\">MQTT Password</th></tr><tr><th colspan=\"3\"><input type=\"password\" name=\"mqttPassword\" value=\"";
+// const String mqttPortString = "\"</th></tr><tr><th colspan=\"3\">MQTT Port</th></tr><tr><th colspan=\"3\"><input type=\"number\" name=\"mqttPort\" value=\"";
+// const String mqttSubmitString = "\"</th></tr><tr><th colspan=\"3\"><input type=\"submit\" value=\"submit\"></th></tr></table></div></form>";
 
 void handleRoot() {
   String htmlPage = first; 
@@ -649,23 +708,31 @@ void handleRoot() {
 void handlePost() {
   if(server.hasArg("SSID")) {
     String ssid = server.arg("SSID");
-    ssid_length = ssid.length();
-    ssid.toCharArray(client_ssid_string,ssid_length+1); 
+    if(ssid.length()) {
+      ssid_length = ssid.length();
+      ssid.toCharArray(client_ssid_string,ssid_length+1); 
+    }
   }
   if(server.hasArg("password")) {
     String pw = server.arg("password");
-    password_length = pw.length();
-    pw.toCharArray(client_password_string,password_length+1); 
+    if(pw.length()) {
+      password_length = pw.length();
+      pw.toCharArray(client_password_string,password_length+1); 
+    }
   }
   if(server.hasArg("broker")) {
     String broker = server.arg("broker");
-    mqtt_broker_length = broker.length();
-    broker.toCharArray(mqtt_broker_string,mqtt_broker_length+1); 
+    if(broker.length()){
+      mqtt_broker_length = broker.length();
+      broker.toCharArray(mqtt_broker_string,mqtt_broker_length+1); 
+    }
   }
   if(server.hasArg("user")) {
     String user = server.arg("user");
-    mqtt_user_length = user.length();
-    user.toCharArray(mqtt_user_string,mqtt_user_length+1); 
+    if(user.length()){
+      mqtt_user_length = user.length();
+      user.toCharArray(mqtt_user_string,mqtt_user_length+1); 
+    }
   }
   if(server.hasArg("mqttPassword")) {
     String pw = server.arg("mqttPassword");
