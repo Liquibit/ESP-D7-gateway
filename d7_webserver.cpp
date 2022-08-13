@@ -8,12 +8,12 @@ WebServer server(80);
 static bool posted = false;
 static webserver_update_callback update_callback = NULL;
 
-static webserver_data_t cached_data;
+static persisted_data_t cached_data;
 
 void handleRoot();
 void handlePost();
 
-void webserver_init(const char* mdns_hostname, webserver_update_callback callback, webserver_data_t data) {
+void webserver_init(const char* mdns_hostname, webserver_update_callback callback, persisted_data_t data) {
   update_callback = callback;
   cached_data = data;
   
@@ -114,13 +114,18 @@ void handleRoot() {
 }
 
 void handlePost() {
+  DPRINTLN("handle post");
   if(server.hasArg("SSID")) {
     String ssid = server.arg("SSID");
     if(ssid.length()) {
+      DPRINTLN("gotten ssid, parsing");
       *cached_data.wifi_ssid.length = ssid.length();
+      DPRINTLN(*cached_data.wifi_ssid.length);
       ssid.toCharArray(cached_data.wifi_ssid.content, ssid.length()+1); 
+      DPRINTLN("got em");
     }
   }
+  DPRINTLN("gotten ssid");
   if(server.hasArg("password")) {
     String pw = server.arg("password");
     if(pw.length()) {
@@ -150,6 +155,9 @@ void handlePost() {
   if(server.hasArg("mqttPort")) {
     *cached_data.mqtt_port = strtoul(server.arg("mqttPort").c_str(), NULL, 10);
   }
+
+  if(update_callback)
+    update_callback();
 
   posted = true;
   handleRoot();

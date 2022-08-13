@@ -1,13 +1,7 @@
 #include "WiFi_interface.h"
 #include "WiFi.h"
 #include <Dns.h>
-
-//#define DBEGIN(...) Serial.begin(__VA_ARGS__)
-#define DPRINT(...) Serial.print(__VA_ARGS__)
-#define DPRINTLN(...) Serial.println(__VA_ARGS__)
-#define DBEGIN(...)
-//#define DPRINT(...)
-//#define DPRINTLN(...)
+#include "structures.h"
 
 #define WIFI_TIMEOUT 20000
 #define WIFI_DELAY_RETRY 500

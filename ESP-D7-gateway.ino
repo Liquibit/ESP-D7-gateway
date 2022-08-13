@@ -1,10 +1,11 @@
-#include <EEPROM.h>
 #include <PubSubClient.h>
 #include <ESPmDNS.h>
 #include <WebServer.h>
 
+#include "structures.h"
 #include "WiFi_interface.h"
 #include "d7_webserver.h"
+#include "filesystem.h"
 
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
@@ -24,35 +25,11 @@
 #define MAX_SERIAL_BUFFER_SIZE 256
 #define MAX_MQTT_LENGTH 20
 
-#define DEFAULT_MQTT_PORT 1883
-
-//#define DBEGIN(...) Serial.begin(__VA_ARGS__)
-#define DPRINT(...) Serial.print(__VA_ARGS__)
-#define DPRINTLN(...) Serial.println(__VA_ARGS__)
-#define DBEGIN(...)
-//#define DPRINT(...)
-//#define DPRINTLN(...)
-
-//#define DATAPRINT(...) Serial2.print(__VA_ARGS__)
-//#define DATAPRINTLN(...) Serial2.println(__VA_ARGS__)
-//#define DATAREAD(...) Serial2.read(__VA_ARGS__)
-//#define DATAREADY(...) Serial2.available()
-//#define DATABEGIN(...) Serial2.begin(__VA_ARGS__)
-#define DATAPRINT(...) Serial.print(__VA_ARGS__)
-#define DATAPRINTLN(...) Serial.println(__VA_ARGS__)
-#define DATAREAD(...) Serial.read(__VA_ARGS__)
-#define DATAREADY(...) Serial.available()
-#define DATABEGIN(...) Serial.begin(__VA_ARGS__)
-//#define DATAPRINT(...)
-//#define DATAPRINTLN(...)
-//#define DATAREAD(...)
-//#define DATAREADY(...)
-//#define DATABEGIN(...)
+#define FILESYSTEM_SIZE 612
 
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);
 
-static bool valid_mqtt_broker = false;
 static bool mqtt_auth = false;
 
 const char* ssid = "Dash7-gateway";
@@ -90,8 +67,6 @@ static char raw_file_string[MAX_CHAR_SIZE*2];
 static char file_uid_string[MAX_CHAR_SIZE];
 static char homeassistant_component[MAX_CHAR_SIZE];
 
-#define MAGIC_NUMBER 241
-
 typedef struct
 {
     union
@@ -121,118 +96,19 @@ typedef struct
     };
 } pir_file_t;
 
-void write_credentials_to_eeprom()
-{
-  int offset = 0;
-  EEPROM.write(offset, MAGIC_NUMBER);
-  offset += 1;
-  EEPROM.write(offset, ssid_length);
-  offset += 1;
-  for(int i = 0; i < ssid_length; i++) {
-    EEPROM.write(offset, client_ssid_string[i]);
-    offset += 1;
-  }
-  EEPROM.write(offset, password_length);
-  offset += 1;
-  for(int i = 0; i < password_length; i++) {
-    EEPROM.write(offset, client_password_string[i]);
-    offset += 1;
-  }
-  EEPROM.write(offset, mqtt_broker_length);
-  offset += 1;
-  for(int i = 0; i < mqtt_broker_length; i++) {
-    EEPROM.write(offset, mqtt_broker_string[i]);
-    offset += 1;
-  }
-  EEPROM.write(offset, mqtt_user_length);
-  offset += 1;
-  for(int i = 0; i < mqtt_user_length; i++) {
-    EEPROM.write(offset, mqtt_user_string[i]);
-    offset += 1;
-  }
-  EEPROM.write(offset, mqtt_password_length);
-  offset += 1;
-  for(int i = 0; i < mqtt_password_length; i++) {
-    EEPROM.write(offset, mqtt_password_string[i]);
-    offset += 1;
-  }
-  uint8_t mqtt_port_length = 4;
-  EEPROM.write(offset, mqtt_port_length);
-  offset += 1;
-  for(int i = 0; i < mqtt_port_length; i++) {
-    uint8_t* port_buf = (uint8_t*) &mqtt_port;
-    EEPROM.write(offset, port_buf[i]);
-    offset += 1;
-  }
-  EEPROM.commit();
-}
-
-void init_credentials_eeprom()
-{
-  int offset = 0;
-  if(EEPROM.read(offset) != MAGIC_NUMBER) {
-    DPRINTLN("first byte is not magic number, broadcasting for credentials");
-    ssid_length = 0;
-    password_length = 0;
-    mqtt_broker_length = 0;
-    mqtt_user_length = 0;
-    mqtt_password_length = 0;
-    mqtt_port = DEFAULT_MQTT_PORT;
-    return;
-  }
-  offset += 1;
-
-  ssid_length = EEPROM.read(offset);
-  offset += 1;
-  for(int i = 0; i < ssid_length; i++) {
-    client_ssid_string[i] = EEPROM.read(offset);
-    offset += 1;
-  }
-
-  password_length = EEPROM.read(offset);
-  offset += 1;
-  for(int i = 0; i < password_length; i++) {
-    client_password_string[i] = EEPROM.read(offset);
-    offset += 1;
-  }
-
-  mqtt_broker_length = EEPROM.read(offset);
-  offset += 1;
-  for(int i = 0; i < mqtt_broker_length; i++) {
-    mqtt_broker_string[i] = EEPROM.read(offset);
-    offset += 1;
-  }
-
-  mqtt_user_length = EEPROM.read(offset);
-  offset += 1;
-  for(int i = 0; i < mqtt_user_length; i++) {
-    mqtt_user_string[i] = EEPROM.read(offset);
-    offset += 1;
-  }
-
-  mqtt_password_length = EEPROM.read(offset);
-  offset += 1;
-  for(int i = 0; i < mqtt_password_length; i++) {
-    mqtt_password_string[i] = EEPROM.read(offset);
-    offset += 1;
-  }
-
-  uint8_t mqtt_port_length = EEPROM.read(offset);
-  offset += 1;
-  for(int i = 0; i < mqtt_port_length; i++) {
-    uint8_t* mqtt_port_ptr = (uint8_t*) &mqtt_port;
-    mqtt_port_ptr[i] = EEPROM.read(offset);
-    offset += 1;
-  }
-
-  valid_mqtt_broker = (mqtt_broker_length > 0);
-}
+static persisted_data_t linked_data = (persisted_data_t){
+  .wifi_ssid = { .length = &ssid_length, .content = client_ssid_string },
+  .wifi_password = { .length = &password_length, .content = client_password_string },
+  .mqtt_broker = { .length = &mqtt_broker_length, .content = mqtt_broker_string },
+  .mqtt_user = { .length = &mqtt_user_length, .content = mqtt_user_string },
+  .mqtt_password = { .length = &mqtt_password_length, .content = mqtt_password_string },
+  .mqtt_port = &mqtt_port,
+};
 
 void connection_details_changed() {
-  valid_mqtt_broker = (mqtt_broker_length > 0);
   set_mqtt_broker_address();
 
-  write_credentials_to_eeprom();
+  filesystem_write(linked_data);
 }
 
 void setup() 
@@ -245,22 +121,13 @@ void setup()
   
   DATABEGIN(115200);
 
-  EEPROM.begin(612);
+  filesystem_init(FILESYSTEM_SIZE);
 
   WiFi_init(ssid);
 
-  webserver_data_t linked_data = (webserver_data_t){
-    .wifi_ssid = { .length = &ssid_length, .content = (char*) ssid },
-    .wifi_password = { .length = &password_length, .content = client_password_string },
-    .mqtt_broker = { .length = &mqtt_broker_length, .content = mqtt_broker_string },
-    .mqtt_user = { .length = &mqtt_user_length, .content = mqtt_user_string },
-    .mqtt_password = { .length = &mqtt_password_length, .content = mqtt_password_string },
-    .mqtt_port = &mqtt_port,
-  };
-
   webserver_init(ssid, &connection_details_changed, linked_data);
   
-  init_credentials_eeprom();
+  filesystem_read(linked_data);
 
   mqtt_client.setCallback(downlink);
 
@@ -269,7 +136,7 @@ void setup()
 
 void set_mqtt_broker_address() {  
 //  also allow public addresses
-  if(valid_mqtt_broker) {
+  if(mqtt_broker_length > 0) {
     IPAddress serverIp = MDNS.queryHost(mqtt_broker_string);
     if(serverIp.toString().equals("0.0.0.0")) {
       IPAddress public_ip;
@@ -300,7 +167,7 @@ bool check_mqtt_connection() {
 void loop()
 {
   if(WiFi_connect(client_ssid_string, ssid_length, client_password_string, password_length)) {
-    if(valid_mqtt_broker && check_mqtt_connection()) {
+    if(check_mqtt_connection()) {
 //      digitalWrite(ESP_BUSY_PIN, LOW);
       while(DATAREADY()) {
         serial_buffer[serial_index_end] = DATAREAD();
