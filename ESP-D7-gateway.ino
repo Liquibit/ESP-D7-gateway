@@ -5,6 +5,8 @@
 #include <PubSubClient.h>
 #include <Dns.h>
 
+#include "WiFi_interface.h"
+
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
 #define ESP_BUSY_PIN 13
@@ -249,11 +251,7 @@ void setup()
 
   EEPROM.begin(612);
 
-  
-  WiFi.mode(WIFI_MODE_APSTA);
-  WiFi.disconnect();
-
-  WiFi.softAP(ssid);
+  WiFi_init(ssid);
 
   server.begin();
   MDNS.begin("Dash7-gateway");
@@ -286,47 +284,6 @@ void set_mqtt_broker_address() {
   }
 }
 
-bool check_connection() {
-  if(WiFi.status() != WL_CONNECTED) {
-    if(ssid_length == 0) {
-      return false;
-    }
-    int n = WiFi.scanNetworks();
-    if(n < 1)
-      return false;
-    bool found = false;
-    for(int i = 0; i < n; i++) {
-      String found_ssid = WiFi.SSID(i);
-      int len = found_ssid.length();
-      char found_ssid_char[len];
-      found_ssid.toCharArray(found_ssid_char, len + 1);
-      if(!memcmp(found_ssid_char, client_ssid_string, len)) {
-        WiFi.begin(found_ssid_char, client_password_string);
-        found = true;
-        break;
-      }
-    }
-    if(!found)
-      return false;
-
-    int total_delay = 0;
-    while((WiFi.status() != WL_CONNECTED) && (total_delay < WIFI_TIMEOUT)) {
-      delay(WIFI_DELAY_RETRY);
-      total_delay += WIFI_DELAY_RETRY;
-    }
-    DPRINTLN("connected to Wi-Fi");
-
-    if(WiFi.status() == WL_CONNECTED) {
-      WiFi.mode(WIFI_STA);
-      dns_client.begin(public_dns_ip);
-      return true;
-    } else {
-      return false;
-    }
-  } else
-    return true;
-}
-
 bool check_mqtt_connection() {
   if(!mqtt_client.connected()) {
     set_mqtt_broker_address();
@@ -342,7 +299,7 @@ bool check_mqtt_connection() {
 
 void loop()
 {
-  if(check_connection()) {
+  if(WiFi_connect(client_ssid_string, ssid_length, client_password_string, password_length)) {
     if(valid_mqtt_broker && check_mqtt_connection()) {
 //      digitalWrite(ESP_BUSY_PIN, LOW);
       while(DATAREADY()) {
