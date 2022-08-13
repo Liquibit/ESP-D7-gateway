@@ -2,17 +2,24 @@
 #include "WiFi.h"
 #include <Dns.h>
 
+//#define DBEGIN(...) Serial.begin(__VA_ARGS__)
+#define DPRINT(...) Serial.print(__VA_ARGS__)
+#define DPRINTLN(...) Serial.println(__VA_ARGS__)
+#define DBEGIN(...)
+//#define DPRINT(...)
+//#define DPRINTLN(...)
+
 #define WIFI_TIMEOUT 20000
 #define WIFI_DELAY_RETRY 500
 
 const IPAddress public_dns_ip(8, 8, 8, 8);
 DNSClient dns_client;
 
-void WiFi_init(char* access_point_ssid) {
+void WiFi_init(const char* access_point_ssid) {
   WiFi.mode(WIFI_MODE_APSTA);
   WiFi.disconnect();
   
-  WiFi.softAP(ssid);
+  WiFi.softAP(access_point_ssid);
 }
 
 bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_length) {
@@ -54,4 +61,8 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
     }
   } else
     return true;
+}
+
+bool WiFi_get_ip_by_name(char* host, IPAddress resulting_ip) {
+  return WiFi.hostByName(host, resulting_ip);
 }

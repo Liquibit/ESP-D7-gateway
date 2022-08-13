@@ -1,11 +1,10 @@
-#include "WiFi.h"
-#include <WebServer.h>
-#include <ESPmDNS.h>
 #include <EEPROM.h>
 #include <PubSubClient.h>
-#include <Dns.h>
+#include <ESPmDNS.h>
+#include <WebServer.h>
 
 #include "WiFi_interface.h"
+#include "d7_webserver.h"
 
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
@@ -52,8 +51,6 @@
 
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);
-const IPAddress public_dns_ip(8, 8, 8, 8);
-DNSClient dns_client;
 
 static bool valid_mqtt_broker = false;
 static bool mqtt_auth = false;
@@ -94,14 +91,6 @@ static char file_uid_string[MAX_CHAR_SIZE];
 static char homeassistant_component[MAX_CHAR_SIZE];
 
 #define MAGIC_NUMBER 241
-
-#define WIFI_TIMEOUT 20000
-#define WIFI_DELAY_RETRY 500
-WebServer server(80);
-bool posted = false;
-
-void handleRoot();
-void handlePost();
 
 typedef struct
 {
@@ -239,6 +228,13 @@ void init_credentials_eeprom()
   valid_mqtt_broker = (mqtt_broker_length > 0);
 }
 
+void connection_details_changed() {
+  valid_mqtt_broker = (mqtt_broker_length > 0);
+  set_mqtt_broker_address();
+
+  write_credentials_to_eeprom();
+}
+
 void setup() 
 {
   // the esp should report busy as long as it does not have an internet connection
@@ -253,14 +249,18 @@ void setup()
 
   WiFi_init(ssid);
 
-  server.begin();
-  MDNS.begin("Dash7-gateway");
+  webserver_data_t linked_data = (webserver_data_t){
+    .wifi_ssid = { .length = &ssid_length, .content = (char*) ssid },
+    .wifi_password = { .length = &password_length, .content = client_password_string },
+    .mqtt_broker = { .length = &mqtt_broker_length, .content = mqtt_broker_string },
+    .mqtt_user = { .length = &mqtt_user_length, .content = mqtt_user_string },
+    .mqtt_password = { .length = &mqtt_password_length, .content = mqtt_password_string },
+    .mqtt_port = &mqtt_port,
+  };
 
-  init_credentials_eeprom();
+  webserver_init(ssid, &connection_details_changed, linked_data);
   
-  server.on("/", HTTP_GET, handleRoot);
-  server.on("/change", HTTP_POST, handlePost);
-  server.onNotFound(handleRoot);
+  init_credentials_eeprom();
 
   mqtt_client.setCallback(downlink);
 
@@ -273,7 +273,7 @@ void set_mqtt_broker_address() {
     IPAddress serverIp = MDNS.queryHost(mqtt_broker_string);
     if(serverIp.toString().equals("0.0.0.0")) {
       IPAddress public_ip;
-      if(WiFi.hostByName(mqtt_broker_string, public_ip)) {
+      if(WiFi_get_ip_by_name(mqtt_broker_string, public_ip)) {
         mqtt_client.setServer(public_ip, mqtt_port);
       } else {
         DPRINTLN("No IP found");
@@ -310,7 +310,7 @@ void loop()
       mqtt_client.loop();
     }
   }
-  server.handleClient();
+  webserver_handle();
 }
 
 void downlink(char* topic, byte* message, unsigned int length) {
@@ -565,147 +565,4 @@ static void create_and_send_json()
   DPRINTLN(state_topic);
   DPRINTLN(state_string);
   */
-}
-
-const String first = "<head>" \
-    "<style type=\"text/css\">" \
-      "#container {" \
-        "margin: 0;" \
-        "position: absolute;" \
-        "top: 25%;" \
-        "left: 50%;" \
-        "transform: translate(-50%, -25%);" \
-        "width:400px;" \
-        "height:600px;" \
-      "}" \
-      "h1{" \
-        "text-align: center;" \
-        "padding:10px;" \
-      "}" \
-      "label, input{" \
-        "display:block;" \
-        "width:100%;" \
-      "}" \
-      "input {" \
-        "margin-bottom: 2em;" \
-      "}" \
-    "</style>" \
-  "</head>" \
-  "<body>" \
-    "<div id=\"container\">" \
-    "<h1>IoWay</h1>" \
-    "<form action=\"change\" method=\"POST\">";
-const String postedString = "<p style=\"color: red;\">Command sent to server!</p>";
-const String WiFiCredentialsString = "<div>" \
-        "<label for=\"SSID\">Wi-Fi SSID</label>" \
-        "<input type=\"text\" name=\"SSID\" />" \
-      "</div>" \
-      "<div>" \
-        "<label for=\"password\">Password</label>" \
-        "<input type=\"password\" name=\"password\" />" \
-      "</div>";
-const String mqttBrokerString = "<div>" \
-        "<label for=\"broker\">MQTT Broker</label>" \
-        "<input type=\"text\" name=\"broker\" value=\"";
-const String mqttUserString = "\" />" \
-      "</div>" \
-      "<div>" \
-        "<label for=\"user\">MQTT User</label>" \
-        "<input type=\"text\" name=\"user\" value=\"";
-const String mqttPasswordString = "\"/>" \
-      "</div>" \
-      "<div>" \
-        "<label for=\"mqttPassword\">MQTT Password</label>" \
-        "<input type=\"password\" name=\"mqttPassword\" value=\"";
-const String mqttPortString = "\"/>" \
-      "</div>" \
-      "<div>" \
-        "<label for=\"mqttPort\">MQTT Port</label>" \
-        "<input type=\"number\" name=\"mqttPort\" value=\"";
-const String mqttSubmitString = "\" />" \
-      "</div>" \
-      "<div>" \
-        "<input type=\"submit\" value=\"submit\" />" \
-      "</div>" \
-    "</form></div>" \
-  "</body>";
-
-
-// const String first = "<form action=\"change\" method=\"POST\"><div><table style=\"width: 100%;\">";
-// const String postedString = "<tr><th colspan=\"3\" style=\"color: red\">Command sent to server!</th></tr>";
-// const String WiFiCredentialsString = "<tr><th colspan=\"3\">Wi-Fi SSID</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"SSID\"></th></tr>"
-//                                      "<tr><th colspan=\"3\">Password</th></tr><tr><th colspan=\"3\"><input type=\"password\" name=\"password\"></th></tr><tr></tr>";
-// const String mqttBrokerString = "<tr><th colspan=\"3\">MQTT Broker</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"broker\" value=\"";
-// const String mqttUserString = "\"</th></tr><tr><th colspan=\"3\">MQTT User</th></tr><tr><th colspan=\"3\"><input type=\"text\" name=\"user\" value=\"";
-// const String mqttPasswordString = "\"</th></tr><tr><th colspan=\"3\">MQTT Password</th></tr><tr><th colspan=\"3\"><input type=\"password\" name=\"mqttPassword\" value=\"";
-// const String mqttPortString = "\"</th></tr><tr><th colspan=\"3\">MQTT Port</th></tr><tr><th colspan=\"3\"><input type=\"number\" name=\"mqttPort\" value=\"";
-// const String mqttSubmitString = "\"</th></tr><tr><th colspan=\"3\"><input type=\"submit\" value=\"submit\"></th></tr></table></div></form>";
-
-void handleRoot() {
-  String htmlPage = first; 
-  if(posted)
-    htmlPage += postedString;
-  htmlPage += WiFiCredentialsString;
-  htmlPage += mqttBrokerString;
-  htmlPage += mqtt_broker_string;
-  htmlPage += mqttUserString;
-  // we could fill in user and password up front so users can make easy changes. This will, however, send them in plaintext and thus expose them to the network
-  //htmlPage += mqtt_user_string;
-  htmlPage += mqttPasswordString;
-  //htmlPage += mqtt_password_string;
-  htmlPage += mqttPortString;
-  htmlPage += mqtt_port;
-  htmlPage += mqttSubmitString;
-
-  server.send(200, "text/html", htmlPage);
-
-  posted = false;
-}
-
-void handlePost() {
-  if(server.hasArg("SSID")) {
-    String ssid = server.arg("SSID");
-    if(ssid.length()) {
-      ssid_length = ssid.length();
-      ssid.toCharArray(client_ssid_string,ssid_length+1); 
-    }
-  }
-  if(server.hasArg("password")) {
-    String pw = server.arg("password");
-    if(pw.length()) {
-      password_length = pw.length();
-      pw.toCharArray(client_password_string,password_length+1); 
-    }
-  }
-  if(server.hasArg("broker")) {
-    String broker = server.arg("broker");
-    if(broker.length()){
-      mqtt_broker_length = broker.length();
-      broker.toCharArray(mqtt_broker_string,mqtt_broker_length+1); 
-    }
-  }
-  if(server.hasArg("user")) {
-    String user = server.arg("user");
-    if(user.length()){
-      mqtt_user_length = user.length();
-      user.toCharArray(mqtt_user_string,mqtt_user_length+1); 
-    }
-  }
-  if(server.hasArg("mqttPassword")) {
-    String pw = server.arg("mqttPassword");
-    mqtt_password_length = pw.length();
-    pw.toCharArray(mqtt_password_string,mqtt_password_length+1); 
-  }
-  if(server.hasArg("mqttPort")) {
-    mqtt_port = strtoul(server.arg("mqttPort").c_str(), NULL, 10);
-  }
-  
-  
-  valid_mqtt_broker = (mqtt_broker_length > 0);
-  set_mqtt_broker_address();
-
-  write_credentials_to_eeprom();
-
-  posted = true;
-  handleRoot();
 }
