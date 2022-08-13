@@ -6,14 +6,11 @@
 #include "WiFi_interface.h"
 #include "d7_webserver.h"
 #include "filesystem.h"
+#include "serial_interface.h"
 
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
 #define ESP_BUSY_PIN 13
-
-#define MODEM_HEADER_SIZE 7
-#define MODEM_HEADER_SYNC_BYTE 0xC0
-#define MODEM_HEADER_VERSION 0
 
 #define ALP_OP_RETURN_FILE_DATA 0x20
 #define ALP_OP_STATUS 0x22
@@ -22,7 +19,6 @@
 #define FILE_ID_PIR 53
 
 #define MAX_CHAR_SIZE 100
-#define MAX_SERIAL_BUFFER_SIZE 256
 #define MAX_MQTT_LENGTH 20
 
 #define FILESYSTEM_SIZE 612
@@ -51,10 +47,6 @@ int mqtt_password_length;
 
 static uint32_t mqtt_port;
 
-static unsigned char serial_buffer[MAX_SERIAL_BUFFER_SIZE];
-static uint8_t serial_index_start = 0;
-static uint8_t serial_index_end = 0;
-
 static bool header_parsed;
 static uint8_t payload_length;
 static uint8_t packet_type;
@@ -66,6 +58,8 @@ static bool last_state;
 static char raw_file_string[MAX_CHAR_SIZE*2];
 static char file_uid_string[MAX_CHAR_SIZE];
 static char homeassistant_component[MAX_CHAR_SIZE];
+
+void alp_parse(uint8_t* buffer, uint8_t length);
 
 typedef struct
 {
@@ -105,21 +99,22 @@ static persisted_data_t linked_data = (persisted_data_t){
   .mqtt_port = &mqtt_port,
 };
 
-void connection_details_changed() {
+static void connection_details_changed() {
   set_mqtt_broker_address();
 
   filesystem_write(linked_data);
 }
 
+static void modem_rebooted(uint8_t reason) {
+  DPRINT("Modem rebooted with reason ");
+  DPRINTLN(reason);
+}
+
 void setup() 
 {
-  // the esp should report busy as long as it does not have an internet connection
-//  pinMode(ESP_BUSY_PIN, OUTPUT);
-//  digitalWrite(ESP_BUSY_PIN, HIGH);
-
   DBEGIN(115200);
-  
-  DATABEGIN(115200);
+
+  serial_interface_init(&modem_rebooted, &alp_parse);
 
   filesystem_init(FILESYSTEM_SIZE);
 
@@ -168,11 +163,7 @@ void loop()
 {
   if(WiFi_connect(client_ssid_string, ssid_length, client_password_string, password_length)) {
     if(check_mqtt_connection()) {
-//      digitalWrite(ESP_BUSY_PIN, LOW);
-      while(DATAREADY()) {
-        serial_buffer[serial_index_end] = DATAREAD();
-        serial_index_end++;
-      }
+      serial_handle();
       serial_parse();
       mqtt_client.loop();
     }
@@ -184,91 +175,33 @@ void downlink(char* topic, byte* message, unsigned int length) {
   
 }
 
-uint16_t get_serial_size()
-{
-  if(serial_index_start > serial_index_end)
-    return (MAX_SERIAL_BUFFER_SIZE - serial_index_start) + serial_index_end;
-  return serial_index_end - serial_index_start;
-}
-
-void serial_parse()
-{
-  if(!header_parsed) {
-    if(get_serial_size() > MODEM_HEADER_SIZE) {
-      // check sync byte and version, otherwise skip byte
-      if((serial_buffer[serial_index_start++] == MODEM_HEADER_SYNC_BYTE) && (serial_buffer[serial_index_start++] == MODEM_HEADER_VERSION)) {
-        serial_index_start++;
-        packet_type = serial_buffer[serial_index_start++];
-        payload_length = serial_buffer[serial_index_start++];
-        header_parsed = true;
-        serial_index_start += MODEM_HEADER_SIZE - 5;
-      } else {
-        DPRINT("not header material ");
-        DPRINTLN(serial_buffer[serial_index_start]);
-        serial_index_start++;
-      }
-    }
-  } else {
-    if(get_serial_size() >= payload_length) {
-      switch(packet_type){
-        case 5: //reboot
-          DPRINT("Modem rebooted with reason ");
-          DPRINTLN(serial_buffer[serial_index_start]);
-          serial_index_start += 1;
-          break;
-        default: //alp
-//          digitalWrite(ESP_BUSY_PIN, HIGH);
-          alp_parse();
-          uint8_t empty_array[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-          if(memcmp(current_uid, empty_array, 8)) {
-            create_and_send_json();
-            memcpy(current_uid, empty_array, 8);
-          }
-//          digitalWrite(ESP_BUSY_PIN, LOW);
-          break;
-      }
-      header_parsed = false;
-    }
-  }
-}
-
-void memcpy_serial_overflow(uint8_t* dest, uint8_t length)
-{
-  if(((serial_index_start + length) & 0xFF) > serial_index_start) {
-    memcpy(dest, &serial_buffer[serial_index_start], length);
-  } else {
-    uint8_t end_length = MAX_SERIAL_BUFFER_SIZE - serial_index_start;
-    memcpy(dest, &serial_buffer[serial_index_start], end_length);
-    memcpy(dest + end_length, serial_buffer, length - end_length);
-  }
-}
-
-void alp_parse()
+void alp_parse(uint8_t* buffer, uint8_t payload_length)
 {
   uint8_t file_id;
   uint8_t offset;
   uint8_t length;
+  uint8_t index = 0;
   while(payload_length > 0) {
-    switch (serial_buffer[serial_index_start++] & 0x3F) {
+    switch (buffer[index++] & 0x3F) {
       case ALP_OP_RETURN_FILE_DATA:
-        file_id = serial_buffer[serial_index_start++];
-        offset = serial_buffer[serial_index_start++];
-        length = serial_buffer[serial_index_start++];
-        parse_custom_files(file_id, offset, length);
-        serial_index_start += length;
+        file_id = buffer[index++];
+        offset = buffer[index++];
+        length = buffer[index++];
+        parse_custom_files(&buffer[index], file_id, offset, length);
+        index += length;
         payload_length -= 4 + length;
         break;
       case ALP_OP_STATUS:
         {
           //field 1 is interface id
-          serial_index_start++;
-          length = serial_buffer[serial_index_start++];
-          serial_index_start += 4;
-          uint8_t linkbudget = serial_buffer[serial_index_start++];
+          index++;
+          length = buffer[index++];
+          index += 4;
+          uint8_t linkbudget = buffer[index++];
           // uid is at index 12
-          serial_index_start += 7;
-          memcpy_serial_overflow(current_uid, 8);
-          serial_index_start += 8;
+          index += 7;
+          memcpy(current_uid, buffer, 8);
+          index += 8;
           DPRINT("current id ");
           DPRINT(current_uid[0], HEX);
           DPRINT(current_uid[1], HEX);
@@ -284,19 +217,24 @@ void alp_parse()
         }
       default: //not implemented alp
         DPRINTLN("unknown alp command, skipping message");
-        serial_index_start += payload_length - 1; // alp command is already parsed
+        index += payload_length - 1;
         payload_length = 0;
         break;
     }
-  }  
+  }
+  uint8_t empty_array[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  if(memcmp(current_uid, empty_array, 8)) {
+    create_and_send_json();
+    memcpy(current_uid, empty_array, 8);
+  }
 }
 
-void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
+void parse_custom_files(uint8_t* buffer, uint8_t file_id, uint8_t offset, uint8_t length)
 {
   switch(file_id) {
     case FILE_ID_BUTTON:;
       button_file_t button_file;
-      memcpy_serial_overflow(button_file.bytes, length);
+      memcpy(button_file.bytes, buffer, length);
       last_voltage = button_file.battery_voltage;
       last_state = (bool) ((1 << button_file.button_id) & button_file.buttons_state);
       // indicate that last_state should be used
@@ -310,7 +248,7 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       break;
     case FILE_ID_PIR:;
       pir_file_t pir_file;
-      memcpy_serial_overflow(pir_file.bytes, length);
+      memcpy(pir_file.bytes, buffer, length);
       last_voltage = pir_file.battery_voltage;
       last_state = pir_file.state;
       // indicate that last_state should be used
@@ -320,7 +258,7 @@ void parse_custom_files(uint8_t file_id, uint8_t offset, uint8_t length)
       break;
     default:;
       uint8_t raw_data[length];
-      memcpy_serial_overflow(raw_data, length);
+      memcpy(raw_data, buffer, length);
       sprintf(raw_file_string, "");
       for(int i = 0; i < length; i++) {
         sprintf(raw_file_string, "%s%02X", raw_file_string, raw_data[i]);
