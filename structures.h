@@ -39,4 +39,12 @@ typedef struct {
   uint32_t* mqtt_port;
 } persisted_data_t;
 
+typedef struct {
+  int16_t file_id;
+  uint8_t length;
+  uint8_t offset;
+  uint8_t buffer[255];
+  uint8_t uid[8];
+} custom_file_contents_t;
+
 #endif

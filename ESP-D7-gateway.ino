@@ -7,13 +7,11 @@
 #include "d7_webserver.h"
 #include "filesystem.h"
 #include "serial_interface.h"
+#include "alp.h"
 
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
 #define ESP_BUSY_PIN 13
-
-#define ALP_OP_RETURN_FILE_DATA 0x20
-#define ALP_OP_STATUS 0x22
 
 #define FILE_ID_BUTTON 51
 #define FILE_ID_PIR 53
@@ -59,7 +57,7 @@ static char raw_file_string[MAX_CHAR_SIZE*2];
 static char file_uid_string[MAX_CHAR_SIZE];
 static char homeassistant_component[MAX_CHAR_SIZE];
 
-void alp_parse(uint8_t* buffer, uint8_t length);
+void parse_custom_files(custom_file_contents_t* custom_file_contents);
 
 typedef struct
 {
@@ -115,14 +113,13 @@ void setup()
   DBEGIN(115200);
 
   serial_interface_init(&modem_rebooted, &alp_parse);
+  alp_init(&parse_custom_files);
 
   filesystem_init(FILESYSTEM_SIZE);
+  filesystem_read(linked_data);
 
   WiFi_init(ssid);
-
   webserver_init(ssid, &connection_details_changed, linked_data);
-  
-  filesystem_read(linked_data);
 
   mqtt_client.setCallback(downlink);
 
@@ -175,62 +172,12 @@ void downlink(char* topic, byte* message, unsigned int length) {
   
 }
 
-void alp_parse(uint8_t* buffer, uint8_t payload_length)
+void parse_custom_files(custom_file_contents_t* custom_file_contents)
 {
+  uint8_t* buffer;
   uint8_t file_id;
   uint8_t offset;
   uint8_t length;
-  uint8_t index = 0;
-  while(payload_length > 0) {
-    switch (buffer[index++] & 0x3F) {
-      case ALP_OP_RETURN_FILE_DATA:
-        file_id = buffer[index++];
-        offset = buffer[index++];
-        length = buffer[index++];
-        parse_custom_files(&buffer[index], file_id, offset, length);
-        index += length;
-        payload_length -= 4 + length;
-        break;
-      case ALP_OP_STATUS:
-        {
-          //field 1 is interface id
-          index++;
-          length = buffer[index++];
-          index += 4;
-          uint8_t linkbudget = buffer[index++];
-          // uid is at index 12
-          index += 7;
-          memcpy(current_uid, buffer, 8);
-          index += 8;
-          DPRINT("current id ");
-          DPRINT(current_uid[0], HEX);
-          DPRINT(current_uid[1], HEX);
-          DPRINT(current_uid[2], HEX);
-          DPRINT(current_uid[3], HEX);
-          DPRINT(current_uid[4], HEX);
-          DPRINT(current_uid[5], HEX);
-          DPRINT(current_uid[6], HEX);
-          DPRINTLN(current_uid[7], HEX);
-          
-          payload_length -= 3 + length;
-          break;
-        }
-      default: //not implemented alp
-        DPRINTLN("unknown alp command, skipping message");
-        index += payload_length - 1;
-        payload_length = 0;
-        break;
-    }
-  }
-  uint8_t empty_array[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  if(memcmp(current_uid, empty_array, 8)) {
-    create_and_send_json();
-    memcpy(current_uid, empty_array, 8);
-  }
-}
-
-void parse_custom_files(uint8_t* buffer, uint8_t file_id, uint8_t offset, uint8_t length)
-{
   switch(file_id) {
     case FILE_ID_BUTTON:;
       button_file_t button_file;
@@ -267,6 +214,7 @@ void parse_custom_files(uint8_t* buffer, uint8_t file_id, uint8_t offset, uint8_
       sprintf(homeassistant_component, "sensor");
       break;
   }
+  create_and_send_json();
 }
 
 static void create_and_send_json()
