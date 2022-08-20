@@ -51,6 +51,7 @@ typedef struct {
 typedef struct {
   char uid[17];
   char name[50];
+  char object_id[50];
   char component[20];
   char category[20];
   char unit[5];
@@ -60,6 +61,7 @@ typedef struct {
   char sw_version[4];
   char model[20];
   char state[20];
+  bool default_shown;
 } publish_object_t;
 
 #endif

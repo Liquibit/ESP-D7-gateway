@@ -106,11 +106,11 @@ void mqtt_interface_publish(publish_object_t* objects, uint8_t amount) {
     static char icon_string[40];
     static char state_class_string[50];
     static char unit_string[30];
-    static char config_json[800];
+    static char config_json[900];
 
     for(uint8_t index = 0; index < amount; index++) {
-        sprintf(state_topic, "homeassistant/%s/%s/state", objects[index].component, objects[index].name);
-        sprintf(config_topic, "homeassistant/%s/%s/config", objects[index].component, objects[index].name);
+        sprintf(state_topic, "homeassistant/%s/%s/state", objects[index].component, objects[index].object_id);
+        sprintf(config_topic, "homeassistant/%s/%s/config", objects[index].component, objects[index].object_id);
 
 
         if(objects[index].model[0] != 0)
@@ -151,8 +151,9 @@ void mqtt_interface_publish(publish_object_t* objects, uint8_t amount) {
         else
             sprintf(unit_string, "");
         
-        sprintf(config_json, "{\"dev\":{%s},\"name\":\"%s\",\"qos\":1,\"uniq_id\":\"%s\",\"stat_t\":\"%s\"%s%s%s%s%s}", 
-    device_string, objects[index].name, objects[index].name, state_topic, category_string, device_class_string, icon_string, state_class_string, unit_string);
+        sprintf(config_json, "{\"dev\":{%s},\"name\":\"%s\",\"qos\":1,\"uniq_id\":\"%s\",\"obj_id\":\"%s\",\"enabled_by_default\":%s,\"stat_t\":\"%s\"%s%s%s%s%s}", 
+    device_string, objects[index].name, objects[index].object_id, objects[index].object_id, objects[index].default_shown ? "true" : "false", 
+    state_topic, category_string, device_class_string, icon_string, state_class_string, unit_string);
 
         DPRINTLN(config_json);
         DPRINTLN(objects[index].state);

@@ -202,11 +202,14 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
   switch(file_id) {
     case BUTTON_FILE_ID:
       {
-      sprintf(results[0].name, "%s_button%d", results[0].uid, file->button_file.button_id);
+      sprintf(results[0].name, "button%d", file->button_file.button_id);
+      sprintf(results[0].object_id, "%s_button%d", results[0].uid, file->button_file.button_id);
       sprintf(results[0].component, "binary_sensor");
       sprintf(results[0].state, "%s", file->button_file.mask ? "ON" : "OFF");
+      results[0].default_shown = true;
 
-      sprintf(results[1].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[1].name, "received signal strength");
+      sprintf(results[1].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[1].uid, "%s", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
@@ -214,32 +217,38 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
+      results[1].default_shown = true;
 
       number_of_publish_objects = 2;
       }
       break;
     case HALL_EFFECT_FILE_ID:
       {
-      sprintf(results[0].name, "%s_hall_effect", results[0].uid);
+      sprintf(results[0].name, "hall effect");
+      sprintf(results[0].object_id, "%s_hall_effect", results[0].uid);
       sprintf(results[0].component, "binary_sensor");
       sprintf(results[0].state, "%s", file->hall_effect_file.mask ? "ON" : "OFF");
       sprintf(results[0].icon, "mdi:magnet");
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[1].name, "received signal strength");
+      sprintf(results[1].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
       sprintf(results[1].device_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
+      results[1].default_shown = true;
 
       number_of_publish_objects = 2;
       }
       break;
     case HUMIDITY_FILE_ID:
       {
-      sprintf(results[0].name, "%s_temperature", results[0].uid);
+      sprintf(results[0].name, "temperature");
+      sprintf(results[0].object_id, "%s_temperature", results[0].uid);
       sprintf(results[0].component, "sensor");
       sprintf(results[0].device_class, "temperature");
       sprintf(results[0].state_class, "measurement");
@@ -247,9 +256,11 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[0].icon, "mdi:thermometer");
       float degrees = (float) file->humidity_file.temperature / 10;
       sprintf(results[0].state, "%.1f", degrees);
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_humidity", results[1].uid);
+      sprintf(results[1].name, "humidity");
+      sprintf(results[1].object_id, "%s_humidity", results[1].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].device_class, "humidity");
       sprintf(results[1].state_class, "measurement");
@@ -257,22 +268,26 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].icon, "mdi:water-percent");
       int16_t percentage = round((float) file->humidity_file.humidity / 10);
       sprintf(results[1].state, "%i", percentage);
+      results[1].default_shown = true;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[2].name, "received signal strength");
+      sprintf(results[2].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[2].component, "sensor");
       sprintf(results[2].category, "diagnostic");
       sprintf(results[2].device_class, "measurement");
       sprintf(results[2].unit, "dBm");
       sprintf(results[2].device_class, "signal_strength");
       sprintf(results[2].state, "%i", custom_file_contents->rssi);
+      results[2].default_shown = true;
 
       number_of_publish_objects = 3;
       }
       break;
     case PUSH7_STATE_FILE_ID:
       {
-      sprintf(results[0].name, "%s_battery_voltage", results[0].uid);
+      sprintf(results[0].name, "battery voltage");
+      sprintf(results[0].object_id, "%s_battery_voltage", results[0].uid);
       sprintf(results[0].component, "sensor");
       sprintf(results[0].device_class, "voltage");
       sprintf(results[0].state_class, "measurement");
@@ -285,361 +300,450 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[0].sw_version, "%d",file->push7_state_file.sw_version);
 
       sprintf(results[0].model, "Push7_v%d", file->push7_state_file.hw_version);
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[1].name, "received signal strength");
+      sprintf(results[1].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
       sprintf(results[1].device_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
+      results[1].default_shown = true;
 
       number_of_publish_objects = 2;
       }
       break;
     case LIGHT_FILE_ID:
       {
-      sprintf(results[0].name, "%s_light", results[0].uid);
+      sprintf(results[0].name, "light level");
+      sprintf(results[0].object_id, "%s_light_level", results[0].uid);
       sprintf(results[0].component, "sensor");
       sprintf(results[0].device_class, "illuminance");
       sprintf(results[0].state_class, "measurement");
       sprintf(results[0].unit, "lx");
       float lux = (float) file->light_file.light_level / 10;
       sprintf(results[0].state, "%.1f", lux);
-      DPRINT("Light file category: ");
-      DPRINTLN(results[0].category);
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_light_raw", results[0].uid);
+      sprintf(results[1].name, "light level raw");
+      sprintf(results[1].object_id, "%s_light_raw", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].state_class, "measurement");
       sprintf(results[1].icon, "mdi:sun-wireless");
       sprintf(results[1].state, "%i", file->light_file.light_level_raw);
+      results[1].default_shown = false;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_light_threshold_high_triggered", results[0].uid);
+      sprintf(results[2].name, "light threshold high triggered");
+      sprintf(results[2].object_id, "%s_light_threshold_high_triggered", results[0].uid);
       sprintf(results[2].component, "binary_sensor");
       sprintf(results[2].state, "%s", file->light_file.threshold_high_triggered ? "ON" : "OFF");
       sprintf(results[2].device_class, "motion");
+      results[2].default_shown = false;
 
       sprintf(results[3].uid, "%s", results[0].uid);
-      sprintf(results[3].name, "%s_light_threshold_low_triggered", results[0].uid);
+      sprintf(results[3].name, "light threshold low triggered");
+      sprintf(results[3].object_id, "%s_light_threshold_low_triggered", results[0].uid);
       sprintf(results[3].component, "binary_sensor");
       sprintf(results[3].state, "%s", file->light_file.threshold_low_triggered ? "ON" : "OFF");
       sprintf(results[3].device_class, "motion");
+      results[3].default_shown = false;
 
       sprintf(results[4].uid, "%s", results[0].uid);
-      sprintf(results[4].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[4].name, "received signal strength");
+      sprintf(results[4].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[4].component, "sensor");
       sprintf(results[4].category, "diagnostic");
       sprintf(results[4].device_class, "measurement");
       sprintf(results[4].unit, "dBm");
       sprintf(results[4].device_class, "signal_strength");
       sprintf(results[4].state, "%i", custom_file_contents->rssi);
+      results[4].default_shown = true;
 
       number_of_publish_objects = 5;
       }
       break;
     case PIR_FILE_ID:
       {
-      sprintf(results[0].name, "%s_pir", results[0].uid);
+      sprintf(results[0].name, "pir");
+      sprintf(results[0].object_id, "%s_pir", results[0].uid);
       sprintf(results[0].component, "binary_sensor");
       sprintf(results[0].state, "%s", file->pir_file.mask ? "ON" : "OFF");
       sprintf(results[0].device_class, "motion");
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[1].name, "received signal strength");
+      sprintf(results[1].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
       sprintf(results[1].device_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
+      results[1].default_shown = true;
 
       number_of_publish_objects = 2;
       }
       break;
     case BUTTON_CONFIG_FILE_ID:
       {
-      sprintf(results[0].name, "%s_buttons_transmit_0", results[0].uid);
+      sprintf(results[0].name, "buttons transmit 0");
+      sprintf(results[0].object_id, "%s_buttons_transmit_0", results[0].uid);
       sprintf(results[0].component, "binary_sensor");
       sprintf(results[0].state, "%s", file->button_config_file.transmit_mask_0 ? "ON" : "OFF");
       sprintf(results[0].category, "diagnostic");
+      results[0].default_shown = false;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_buttons_transmit_1", results[0].uid);
+      sprintf(results[1].name, "buttons transmit 1");
+      sprintf(results[1].object_id, "%s_buttons_transmit_1", results[0].uid);
       sprintf(results[1].component, "binary_sensor");
       sprintf(results[1].state, "%s", file->button_config_file.transmit_mask_1 ? "ON" : "OFF");
       sprintf(results[1].category, "diagnostic");
+      results[1].default_shown = false;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_buttons_control_menu", results[0].uid);
+      sprintf(results[2].name, "buttons control menu");
+      sprintf(results[2].object_id, "%s_buttons_control_menu", results[0].uid);
       sprintf(results[2].component, "binary_sensor");
       sprintf(results[2].state, "%s", file->button_config_file.button_control_menu ? "ON" : "OFF");
       sprintf(results[2].category, "diagnostic");
+      results[2].default_shown = false;
 
       sprintf(results[3].uid, "%s", results[0].uid);
-      sprintf(results[3].name, "%s_buttons_enabled", results[0].uid);
+      sprintf(results[3].name, "buttons enabled");
+      sprintf(results[3].object_id, "%s_buttons_enabled", results[0].uid);
       sprintf(results[3].component, "binary_sensor");
       sprintf(results[3].state, "%s", file->button_config_file.enabled ? "ON" : "OFF");
       sprintf(results[3].category, "diagnostic");
       sprintf(results[3].device_class, "running");
+      results[3].default_shown = true;
 
       sprintf(results[4].uid, "%s", results[0].uid);
-      sprintf(results[4].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[4].name, "received signal strength");
+      sprintf(results[4].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[4].component, "sensor");
       sprintf(results[4].category, "diagnostic");
       sprintf(results[4].device_class, "measurement");
       sprintf(results[4].unit, "dBm");
       sprintf(results[4].device_class, "signal_strength");
       sprintf(results[4].state, "%i", custom_file_contents->rssi);
+      results[4].default_shown = true;
 
       number_of_publish_objects = 5;
       }
       break;
     case HALL_EFFECT_CONFIG_FILE_ID:
       {
-      sprintf(results[0].name, "%s_hall_effect_transmit_0", results[0].uid);
+      sprintf(results[0].name, "hall effect transmit 0");
+      sprintf(results[0].object_id, "%s_hall_effect_transmit_0", results[0].uid);
       sprintf(results[0].component, "binary_sensor");
       sprintf(results[0].state, "%s", file->hall_effect_config_file.transmit_mask_0 ? "ON" : "OFF");
       sprintf(results[0].category, "diagnostic");
+      results[0].default_shown = false;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_hall_effect_transmit_1", results[0].uid);
+      sprintf(results[1].name, "hall effect transmit 1");
+      sprintf(results[1].object_id, "%s_hall_effect_transmit_1", results[0].uid);
       sprintf(results[1].component, "binary_sensor");
       sprintf(results[1].state, "%s", file->hall_effect_config_file.transmit_mask_1 ? "ON" : "OFF");
       sprintf(results[1].category, "diagnostic");
+      results[1].default_shown = false;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_hall_effect_enabled", results[0].uid);
+      sprintf(results[2].name, "hall effect enabled");
+      sprintf(results[2].object_id, "%s_hall_effect_enabled", results[0].uid);
       sprintf(results[2].component, "binary_sensor");
       sprintf(results[2].state, "%s", file->hall_effect_config_file.enabled ? "ON" : "OFF");
       sprintf(results[2].category, "diagnostic");
       sprintf(results[2].device_class, "running");
+      results[2].default_shown = true;
 
       sprintf(results[3].uid, "%s", results[0].uid);
-      sprintf(results[3].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[3].name, "received signal strength");
+      sprintf(results[3].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[3].component, "sensor");
       sprintf(results[3].category, "diagnostic");
       sprintf(results[3].device_class, "measurement");
       sprintf(results[3].unit, "dBm");
       sprintf(results[3].device_class, "signal_strength");
       sprintf(results[3].state, "%i", custom_file_contents->rssi);
+      results[3].default_shown = true;
 
       number_of_publish_objects = 4;
       }
       break;
     case HUMIDITY_CONFIG_FILE_ID:
       {
-      sprintf(results[0].name, "%s_humidity_temperature_interval", results[0].uid);
+      sprintf(results[0].name, "humidity temperature interval");
+      sprintf(results[0].object_id, "%s_humidity_temperature_interval", results[0].uid);
       sprintf(results[0].component, "sensor");
       sprintf(results[0].device_class, "duration");
       sprintf(results[0].category, "diagnostic");
       sprintf(results[0].unit, "s");
       sprintf(results[0].state, "%i", file->humidity_config_file.interval);
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_humidity_temperature_enabled", results[0].uid);
+      sprintf(results[1].name, "humidity temperature enabled");
+      sprintf(results[1].object_id, "%s_humidity_temperature_enabled", results[0].uid);
       sprintf(results[1].component, "binary_sensor");
       sprintf(results[1].state, "%s", file->humidity_config_file.enabled ? "ON" : "OFF");
       sprintf(results[1].category, "diagnostic");
       sprintf(results[1].device_class, "running");
+      results[1].default_shown = true;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[2].name, "received signal strength");
+      sprintf(results[2].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[2].component, "sensor");
       sprintf(results[2].category, "diagnostic");
       sprintf(results[2].device_class, "measurement");
       sprintf(results[2].unit, "dBm");
       sprintf(results[2].device_class, "signal_strength");
       sprintf(results[2].state, "%i", custom_file_contents->rssi);
+      results[2].default_shown = true;
 
       number_of_publish_objects = 3;
       }
       break;
     case PUSH7_CONFIG_STATE_FILE_ID:
       {
-      sprintf(results[0].name, "%s_state_interval", results[0].uid);
+      sprintf(results[0].name, "state interval");
+      sprintf(results[0].object_id, "%s_state_interval", results[0].uid);
       sprintf(results[0].component, "sensor");
       sprintf(results[0].device_class, "duration");
       sprintf(results[0].category, "diagnostic");
       sprintf(results[0].unit, "s");
       sprintf(results[0].state, "%i", file->push7_state_config_file.interval);
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_state_flash_led", results[0].uid);
+      sprintf(results[1].name, "state flash led");
+      sprintf(results[1].object_id, "%s_state_flash_led", results[0].uid);
       sprintf(results[1].component, "binary_sensor");
       sprintf(results[1].state, "%s", file->push7_state_config_file.led_flash_state ? "ON" : "OFF");
       sprintf(results[1].category, "diagnostic");
+      results[1].default_shown = false;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_state_enabled", results[0].uid);
+      sprintf(results[2].name, "state enabled");
+      sprintf(results[2].object_id, "%s_state_enabled", results[0].uid);
       sprintf(results[2].component, "binary_sensor");
       sprintf(results[2].state, "%s", file->push7_state_config_file.enabled ? "ON" : "OFF");
       sprintf(results[2].category, "diagnostic");
       sprintf(results[2].device_class, "running");
+      results[2].default_shown = true;
 
       sprintf(results[3].uid, "%s", results[0].uid);
-      sprintf(results[3].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[3].name, "received signal strength");
+      sprintf(results[3].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[3].component, "sensor");
       sprintf(results[3].category, "diagnostic");
       sprintf(results[3].device_class, "measurement");
       sprintf(results[3].unit, "dBm");
       sprintf(results[3].device_class, "signal_strength");
       sprintf(results[3].state, "%i", custom_file_contents->rssi);
+      results[3].default_shown = true;
 
       number_of_publish_objects = 4;
       }
       break;
     case LIGHT_CONFIG_FILE_ID:
       {
-      sprintf(results[0].name, "%s_light_interval", results[0].uid);
+      sprintf(results[0].name, "light interval");
+      sprintf(results[0].object_id, "%s_light_interval", results[0].uid);
       sprintf(results[0].component, "sensor");
       sprintf(results[0].device_class, "duration");
       sprintf(results[0].category, "diagnostic");
       sprintf(results[0].unit, "s");
       sprintf(results[0].state, "%i", file->light_config_file.interval);
+      results[0].default_shown = true;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_light_integration_time", results[0].uid);
+      sprintf(results[1].name, "light integration time");
+      sprintf(results[1].object_id, "%s_light_integration_time", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].device_class, "duration");
       sprintf(results[1].category, "diagnostic");
       sprintf(results[1].unit, "s");
       sprintf(results[1].state, "%i", file->light_config_file.integration_time);
+      results[1].default_shown = false;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_light_persistence_protect_number", results[0].uid);
+      sprintf(results[2].name, "light persistence protect number");
+      sprintf(results[2].object_id, "%s_light_persistence_protect_number", results[0].uid);
       sprintf(results[2].component, "sensor");
       sprintf(results[2].category, "diagnostic");
       sprintf(results[2].state, "%i", file->light_config_file.persistence_protect_number);
+      results[2].default_shown = false;
 
       sprintf(results[3].uid, "%s", results[0].uid);
-      sprintf(results[3].name, "%s_light_gain", results[0].uid);
+      sprintf(results[3].name, "light gain");
+      sprintf(results[3].object_id, "%s_light_gain", results[0].uid);
       sprintf(results[3].component, "sensor");
       sprintf(results[3].category, "diagnostic");
       sprintf(results[3].state, "%i", file->light_config_file.gain);
+      results[3].default_shown = false;
 
       sprintf(results[4].uid, "%s", results[0].uid);
-      sprintf(results[4].name, "%s_light_threshold_high", results[0].uid);
+      sprintf(results[4].name, "light threshold high");
+      sprintf(results[4].object_id, "%s_light_threshold_high", results[0].uid);
       sprintf(results[4].component, "sensor");
       sprintf(results[4].category, "diagnostic");
       sprintf(results[4].state, "%i", file->light_config_file.threshold_high);
+      results[4].default_shown = false;
 
       sprintf(results[5].uid, "%s", results[0].uid);
-      sprintf(results[5].name, "%s_light_threshold_low", results[0].uid);
+      sprintf(results[5].name, "light threshold low");
+      sprintf(results[5].object_id, "%s_light_threshold_low", results[0].uid);
       sprintf(results[5].component, "sensor");
       sprintf(results[5].category, "diagnostic");
       sprintf(results[5].state, "%i", file->light_config_file.threshold_low);
+      results[5].default_shown = false;
 
       sprintf(results[6].uid, "%s", results[0].uid);
-      sprintf(results[6].name, "%s_light_detection_mode", results[0].uid);
+      sprintf(results[6].name, "light detection mode");
+      sprintf(results[6].object_id, "%s_light_detection_mode", results[0].uid);
       sprintf(results[6].component, "binary_sensor");
       sprintf(results[6].category, "diagnostic");
       sprintf(results[6].state, "%i", file->light_config_file.light_detection_mode ? "ON" : "OFF");
+      results[6].default_shown = false;
 
       sprintf(results[7].uid, "%s", results[0].uid);
-      sprintf(results[7].name, "%s_light_low_power_mode", results[0].uid);
+      sprintf(results[7].name, "light low power mode");
+      sprintf(results[7].object_id, "%s_light_low_power_mode", results[0].uid);
       sprintf(results[7].component, "sensor");
       sprintf(results[7].category, "diagnostic");
       sprintf(results[7].state, "%i", file->light_config_file.low_power_mode);
+      results[7].default_shown = false;
 
       sprintf(results[8].uid, "%s", results[0].uid);
-      sprintf(results[8].name, "%s_light_interrupt_check_interval", results[0].uid);
+      sprintf(results[8].name, "light interrupt check interval");
+      sprintf(results[8].object_id, "%s_light_interrupt_check_interval", results[0].uid);
       sprintf(results[8].component, "sensor");
       sprintf(results[8].category, "diagnostic");
       sprintf(results[8].unit, "s");
       sprintf(results[8].device_class, "duration");
       sprintf(results[8].state, "%i", file->light_config_file.interrupt_check_interval);
+      results[8].default_shown = false;
 
       sprintf(results[9].uid, "%s", results[0].uid);
-      sprintf(results[9].name, "%s_light_threshold_menu_offset", results[0].uid);
+      sprintf(results[9].name, "light threshold menu offset");
+      sprintf(results[9].object_id, "%s_light_threshold_menu_offset", results[0].uid);
       sprintf(results[9].component, "sensor");
       sprintf(results[9].category, "diagnostic");
       sprintf(results[9].state, "%i", file->light_config_file.threshold_menu_offset);
+      results[9].default_shown = false;
 
       sprintf(results[10].uid, "%s", results[0].uid);
-      sprintf(results[10].name, "%s_light_enabled", results[0].uid);
+      sprintf(results[10].name, "light enabled");
+      sprintf(results[10].object_id, "%s_light_enabled", results[0].uid);
       sprintf(results[10].component, "binary_sensor");
       sprintf(results[10].state, "%s", file->light_config_file.enabled ? "ON" : "OFF");
       sprintf(results[10].category, "diagnostic");
       sprintf(results[10].device_class, "running");
+      results[10].default_shown = true;
 
       sprintf(results[11].uid, "%s", results[0].uid);
-      sprintf(results[11].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[11].name, "received signal strength");
+      sprintf(results[11].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[11].component, "sensor");
       sprintf(results[11].category, "diagnostic");
       sprintf(results[11].device_class, "measurement");
       sprintf(results[11].unit, "dBm");
       sprintf(results[11].device_class, "signal_strength");
       sprintf(results[11].state, "%i", custom_file_contents->rssi);
+      results[11].default_shown = true;
 
       number_of_publish_objects = 12;
       }
       break;
     case PIR_CONFIG_FILE_ID:
       {
-      sprintf(results[0].name, "%s_pir_transmit_0", results[0].uid);
+      sprintf(results[0].name, "pir transmit 0");
+      sprintf(results[0].object_id, "%s_pir_transmit_0", results[0].uid);
       sprintf(results[0].component, "binary_sensor");
       sprintf(results[0].state, "%s", file->pir_config_file.transmit_mask_0 ? "ON" : "OFF");
       sprintf(results[0].category, "diagnostic");
+      results[0].default_shown = false;
 
       sprintf(results[1].uid, "%s", results[0].uid);
-      sprintf(results[1].name, "%s_pir_transmit_1", results[0].uid);
+      sprintf(results[1].name, "pir transmit 1");
+      sprintf(results[1].object_id, "%s_pir_transmit_1", results[0].uid);
       sprintf(results[1].component, "binary_sensor");
       sprintf(results[1].state, "%s", file->pir_config_file.transmit_mask_1 ? "ON" : "OFF");
       sprintf(results[1].category, "diagnostic");
+      results[1].default_shown = false;
 
       sprintf(results[2].uid, "%s", results[0].uid);
-      sprintf(results[2].name, "%s_pir_filter_source", results[0].uid);
+      sprintf(results[2].name, "pir filter source");
+      sprintf(results[2].object_id, "%s_pir_filter_source", results[0].uid);
       sprintf(results[2].component, "sensor");
       sprintf(results[2].category, "diagnostic");
       sprintf(results[2].state, "%i", file->pir_config_file.filter_source);
+      results[2].default_shown = false;
 
       sprintf(results[3].uid, "%s", results[0].uid);
-      sprintf(results[3].name, "%s_pir_window_time", results[0].uid);
+      sprintf(results[3].name, "pir window time");
+      sprintf(results[3].object_id, "%s_pir_window_time", results[0].uid);
       sprintf(results[3].component, "sensor");
       sprintf(results[3].device_class, "duration");
       sprintf(results[3].category, "diagnostic");
       sprintf(results[3].unit, "s");
       sprintf(results[3].state, "%i", file->pir_config_file.window_time * 2 + 2);
+      results[3].default_shown = false;
 
       sprintf(results[4].uid, "%s", results[0].uid);
-      sprintf(results[4].name, "%s_pir_pulse_counter", results[0].uid);
+      sprintf(results[4].name, "pir pulse counter");
+      sprintf(results[4].object_id, "%s_pir_pulse_counter", results[0].uid);
       sprintf(results[4].component, "sensor");
       sprintf(results[4].category, "diagnostic");
       sprintf(results[4].state, "%i", file->pir_config_file.pulse_counter);
+      results[4].default_shown = false;
 
       sprintf(results[5].uid, "%s", results[0].uid);
-      sprintf(results[5].name, "%s_pir_blind_time", results[0].uid);
+      sprintf(results[5].name, "pir blind time");
+      sprintf(results[5].object_id, "%s_pir_blind_time", results[0].uid);
       sprintf(results[5].component, "sensor");
       sprintf(results[5].device_class, "duration");
       sprintf(results[5].category, "diagnostic");
       sprintf(results[5].unit, "s");
       sprintf(results[5].state, "%i", file->pir_config_file.blind_time);
+      results[5].default_shown = false;
 
       sprintf(results[6].uid, "%s", results[0].uid);
-      sprintf(results[6].name, "%s_pir_threshold", results[0].uid);
+      sprintf(results[6].name, "pir threshold");
+      sprintf(results[6].object_id, "%s_pir_threshold", results[0].uid);
       sprintf(results[6].component, "sensor");
       sprintf(results[6].category, "diagnostic");
       sprintf(results[6].state, "%i", file->pir_config_file.threshold);
+      results[6].default_shown = false;
 
       sprintf(results[7].uid, "%s", results[0].uid);
-      sprintf(results[7].name, "%s_pir_enabled", results[0].uid);
+      sprintf(results[7].name, "pir enabled");
+      sprintf(results[7].object_id, "%s_pir_enabled", results[0].uid);
       sprintf(results[7].component, "binary_sensor");
       sprintf(results[7].state, "%s", file->pir_config_file.enabled ? "ON" : "OFF");
       sprintf(results[7].category, "diagnostic");
       sprintf(results[7].device_class, "running");
+      results[7].default_shown = true;
 
       sprintf(results[8].uid, "%s", results[0].uid);
-      sprintf(results[8].name, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[8].name, "received signal strength");
+      sprintf(results[8].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[8].component, "sensor");
       sprintf(results[8].category, "diagnostic");
       sprintf(results[8].device_class, "measurement");
       sprintf(results[8].unit, "dBm");
       sprintf(results[8].device_class, "signal_strength");
       sprintf(results[8].state, "%i", custom_file_contents->rssi);
+      results[8].default_shown = false;
 
       number_of_publish_objects = 9;
       }
