@@ -5,7 +5,7 @@
 
 #include <WebServer.h>
 
-#define MAX_MQTT_LENGTH 20
+#define MAX_MQTT_LENGTH 250
 
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);

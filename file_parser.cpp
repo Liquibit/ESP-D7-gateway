@@ -612,7 +612,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[6].object_id, "%s_light_detection_mode", results[0].uid);
       sprintf(results[6].component, "binary_sensor");
       sprintf(results[6].category, "diagnostic");
-      sprintf(results[6].state, "%i", file->light_config_file.light_detection_mode ? "ON" : "OFF");
+      sprintf(results[6].state, "%s", file->light_config_file.light_detection_mode ? "ON" : "OFF");
       results[6].default_shown = false;
 
       sprintf(results[7].uid, "%s", results[0].uid);
