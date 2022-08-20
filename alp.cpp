@@ -1,37 +1,34 @@
 #include "alp.h"
 
-#define MAX_CUSTOM_FILES 2
 #define CUSTOM_FILE_EMPTY -1
 
 #define ALP_OP_RETURN_FILE_DATA 0x20
 #define ALP_OP_STATUS 0x22
 
-static custom_file_parse_callback custom_file_cb;
-
-static custom_file_contents_t custom_files[MAX_CUSTOM_FILES]; //limit to 2 custom files for now;
 static uint8_t number_of_parsed_files = 0;
 
 static uint8_t current_uid[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 static uint8_t empty_uid[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-static void reset_custom_files();
 static void print_uid();
 
-void alp_init(custom_file_parse_callback custom_file_parse_cb) {
-  custom_file_cb = custom_file_parse_cb;
+static custom_file_contents_t* custom_files;
+static uint8_t max_size;
 
-  reset_custom_files();
+void alp_init(custom_file_contents_t* custom_file_contents_buffer, uint8_t max_buffer_size) {
+  custom_files = custom_file_contents_buffer;
+  max_size = max_buffer_size;
 }
 
 static void reset_custom_files() {
-  for(uint8_t i = 0; i < MAX_CUSTOM_FILES; i++) {
+  for(uint8_t i = 0; i < max_size; i++) {
     custom_files[i].file_id = CUSTOM_FILE_EMPTY;
   }
   number_of_parsed_files = 0;
 }
 
 static void save_custom_file(uint8_t* buffer, uint8_t file_id, uint8_t offset, uint8_t length) {
-  for(uint8_t i = 0; i < MAX_CUSTOM_FILES; i++) {
+  for(uint8_t i = 0; i < max_size; i++) {
     if(custom_files[i].file_id == CUSTOM_FILE_EMPTY) {
       custom_files[i].file_id = file_id;
       custom_files[i].length  = length;
@@ -44,11 +41,17 @@ static void save_custom_file(uint8_t* buffer, uint8_t file_id, uint8_t offset, u
   DPRINT("ERROR - could not put custom file in buffer");
 }
 
-void alp_parse(uint8_t* buffer, uint8_t payload_length) {
+uint8_t alp_parse(uint8_t* buffer, uint8_t payload_length) {
   uint8_t file_id;
   uint8_t offset;
   uint8_t length;
   uint8_t index = 0;
+  uint8_t rssi = 0;
+
+  //cleanup previous files
+  reset_custom_files();
+  memcpy(current_uid, empty_uid, 8);
+
   while(payload_length > 0) {
     switch (buffer[index++] & 0x3F) {
       case ALP_OP_RETURN_FILE_DATA:
@@ -64,7 +67,8 @@ void alp_parse(uint8_t* buffer, uint8_t payload_length) {
           //field 1 is interface id
           index++;
           length = buffer[index++];
-          index += 4;
+          index += 3;
+          rssi = buffer[index++];
           uint8_t linkbudget = buffer[index++];
           // uid is at index 12
           index += 7;
@@ -83,16 +87,15 @@ void alp_parse(uint8_t* buffer, uint8_t payload_length) {
     }
   }
 
-  // after parsing, send files with uid to be parsed
+  // after parsing, add uid and rssi to the files
   if(memcmp(current_uid, empty_uid, 8) && number_of_parsed_files) {
     for(uint8_t i = 0; i < number_of_parsed_files; i++) {
       memcpy(custom_files[i].uid, current_uid, 8);
-      if(custom_file_cb)
-        custom_file_cb(&custom_files[i]);
+      custom_files[i].rssi = rssi;
     }
   }
-  reset_custom_files();
-  memcpy(current_uid, empty_uid, 8);
+
+  return number_of_parsed_files;
 }
 
 static void print_uid() {

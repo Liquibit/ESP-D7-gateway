@@ -45,6 +45,21 @@ typedef struct {
   uint8_t offset;
   uint8_t buffer[255];
   uint8_t uid[8];
+  uint8_t rssi;
 } custom_file_contents_t;
+
+typedef struct {
+  char uid[17];
+  char name[50];
+  char component[20];
+  char category[20];
+  char unit[5];
+  char icon[20];
+  char state_class[20];
+  char device_class[20];
+  char sw_version[4];
+  char model[20];
+  char state[20];
+} publish_object_t;
 
 #endif

@@ -2,11 +2,10 @@
 #define SERIAL_INTERFACE_H
 #include "structures.h"
 
-typedef void (*modem_rebooted_callback)(uint8_t reason);
-typedef void (*alp_handle_callback)(uint8_t* buffer, uint8_t length);
+typedef void (*modem_rebooted_callback) (uint8_t);
 
-void serial_interface_init(modem_rebooted_callback reboot_callback, alp_handle_callback alp_callback);
+void serial_interface_init(modem_rebooted_callback reboot_callback, uint8_t* output_buffer_pointer);
 void serial_handle();
-void serial_parse();
+uint8_t serial_parse();
 
 #endif

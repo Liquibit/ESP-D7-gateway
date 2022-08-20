@@ -9,7 +9,6 @@
 #define MAX_SERIAL_BUFFER_SIZE 256
 
 static modem_rebooted_callback reboot_cb;
-static alp_handle_callback alp_cb;
 
 static uint8_t buffer[MAX_SERIAL_BUFFER_SIZE];
 static uint8_t index_start = 0;
@@ -19,15 +18,15 @@ static bool header_parsed = false;
 static uint8_t payload_length;
 static uint8_t packet_type;
 
-static uint8_t output_buffer[MAX_SERIAL_BUFFER_SIZE];
+static uint8_t* output_buffer;
 
 static uint16_t get_serial_size();
 static void memcpy_serial_overflow(uint8_t* dest, uint8_t length);
 
-void serial_interface_init(modem_rebooted_callback reboot_callback, alp_handle_callback alp_callback) {
+void serial_interface_init(modem_rebooted_callback reboot_callback, uint8_t* output_buffer_pointer) {
   DATABEGIN(DATARATE);
   reboot_cb = reboot_callback;
-  alp_cb = alp_callback;
+  output_buffer = output_buffer_pointer;
 }
 
 void serial_handle() {
@@ -37,7 +36,7 @@ void serial_handle() {
   }
 }
 
-void serial_parse() {
+uint8_t serial_parse() {
   if(!header_parsed) {
     if(get_serial_size() > MODEM_HEADER_SIZE) {
       // check sync byte and version, otherwise skip byte
@@ -56,6 +55,7 @@ void serial_parse() {
     }
   } else {
     if(get_serial_size() >= payload_length) {
+      header_parsed = false;
       switch(packet_type){
         case 5: //reboot
           if(reboot_cb)
@@ -64,14 +64,12 @@ void serial_parse() {
           break;
         default: //alp
           memcpy_serial_overflow(output_buffer, payload_length);
-          if(alp_cb)
-            alp_cb(output_buffer, payload_length);
           index_start += payload_length;
-          break;
+          return payload_length;
       }
-      header_parsed = false;
     }
   }
+  return 0;
 }
 
 static void memcpy_serial_overflow(uint8_t* dest, uint8_t length)
