@@ -10,13 +10,21 @@
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);
 
+static bool configuration_changed = true;
+
 void downlink(char* topic, byte* message, unsigned int length) {
   
 }
 
-bool mqtt_interface_update_configuration(persisted_data_t persisted_data) {
+static bool update_configuration(persisted_data_t persisted_data) {
+    if(!configuration_changed)
+      return true;
+  
     if(*persisted_data.mqtt_broker.length <= 0)
         return false;
+
+    if(!WiFi_interface_is_connected())
+      return false;
 
     mqtt_client.setCallback(downlink);
     
@@ -29,7 +37,14 @@ bool mqtt_interface_update_configuration(persisted_data_t persisted_data) {
         }
     }
     mqtt_client.setServer(server_ip, *persisted_data.mqtt_port);
+    configuration_changed = false;
     return true;
+}
+
+
+bool mqtt_interface_config_changed(persisted_data_t persisted_data) {
+    configuration_changed = true;
+    return update_configuration(persisted_data);
 }
 
 bool mqtt_interface_connect(char* client_name, persisted_data_t persisted_data) {
@@ -38,7 +53,7 @@ bool mqtt_interface_connect(char* client_name, persisted_data_t persisted_data) 
         return true;
 
     // configuration valid
-    if(!mqtt_interface_update_configuration(persisted_data))
+    if(!update_configuration(persisted_data))
         return false;
 
     // connect successfull
@@ -138,6 +153,9 @@ void mqtt_interface_publish(publish_object_t* objects, uint8_t amount) {
         
         sprintf(config_json, "{\"dev\":{%s},\"name\":\"%s\",\"qos\":1,\"uniq_id\":\"%s\",\"stat_t\":\"%s\"%s%s%s%s%s}", 
     device_string, objects[index].name, objects[index].name, state_topic, category_string, device_class_string, icon_string, state_class_string, unit_string);
+
+        DPRINTLN(config_json);
+        DPRINTLN(objects[index].state);
 
         if(publish_in_parts(config_topic, config_json, strlen(config_json)))
             publish_in_parts(state_topic, objects[index].state, strlen(objects[index].state));

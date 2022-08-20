@@ -16,7 +16,7 @@
 #define MAX_CREDENTIAL_SIZE 100
 #define MAX_SERIAL_BUFFER_SIZE 256
 #define MAX_CUSTOM_FILES 2
-#define MAX_PUBLISH_OBJECTS 13
+#define MAX_PUBLISH_OBJECTS 12
 
 const char* ssid = "Dash7-gateway";
 
@@ -37,6 +37,8 @@ int mqtt_user_length;
 static char mqtt_password_string[MAX_CREDENTIAL_SIZE];
 int mqtt_password_length;
 
+static char mqtt_client_string[30];
+
 static uint32_t mqtt_port;
 
 static uint8_t serial_output_buffer[MAX_SERIAL_BUFFER_SIZE];
@@ -53,7 +55,7 @@ static persisted_data_t linked_data = (persisted_data_t){
 };
 
 static void connection_details_changed() {
-  mqtt_interface_update_configuration(linked_data);
+  mqtt_interface_config_changed(linked_data);
 
   filesystem_write(linked_data);
 }
@@ -69,10 +71,12 @@ void setup()
 
   uint64_t MAC = ESP.getEfuseMac();
   uint8_t* MAC_ptr = (uint8_t*) &MAC;
-  sprintf(mac_id_string, "%02x%02x%02x%02x%02x%02x\n", MAC_ptr[5], MAC_ptr[4], MAC_ptr[3], MAC_ptr[2], MAC_ptr[1], MAC_ptr[0]);
+  sprintf(mac_id_string, "%02x%02x%02x%02x%02x%02x", MAC_ptr[5], MAC_ptr[4], MAC_ptr[3], MAC_ptr[2], MAC_ptr[1], MAC_ptr[0]);
+  sprintf(mqtt_client_string, "Dash7-gateway-%s", mac_id_string);
 
   serial_interface_init(&modem_rebooted, serial_output_buffer);
   alp_init(custom_files, MAX_CUSTOM_FILES);
+  file_parser_init(MAX_PUBLISH_OBJECTS);
 
   filesystem_init(FILESYSTEM_SIZE);
   filesystem_read(linked_data);
@@ -86,7 +90,7 @@ void setup()
 void loop()
 {
   if(WiFi_connect(client_ssid_string, ssid_length, client_password_string, password_length)) {
-    if(mqtt_interface_connect(mac_id_string, linked_data)) {
+    if(mqtt_interface_connect(mqtt_client_string, linked_data)) {
       serial_handle();
       uint8_t serial_payload_length = serial_parse();
       if(serial_payload_length) {

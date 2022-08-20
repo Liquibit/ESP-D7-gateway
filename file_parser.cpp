@@ -180,6 +180,12 @@ typedef struct {
   };
 } custom_file_t;
 
+static uint8_t max_publish_results;
+
+void file_parser_init(uint8_t max_size) {
+  max_publish_results = max_size;
+}
+
 uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish_object_t* results)
 {
   custom_file_t* file = (custom_file_t*) custom_file_contents->buffer;
@@ -189,7 +195,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
 
   uint8_t number_of_publish_objects = 0;
 
-  memset(results, 0, sizeof(results));
+  memset(results, 0, sizeof(publish_object_t) * max_publish_results);
 
   sprintf(results[0].uid, "%02X%02X%02X%02X%02X%02X%02X%02X", custom_file_contents->uid[0], custom_file_contents->uid[1], custom_file_contents->uid[2], custom_file_contents->uid[3], custom_file_contents->uid[4], custom_file_contents->uid[5], custom_file_contents->uid[6], custom_file_contents->uid[7]);
 
@@ -207,7 +213,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].device_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
-      sprintf(results[1].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[1].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 2;
       }
@@ -226,7 +232,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].device_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
-      sprintf(results[1].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[1].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 2;
       }
@@ -259,7 +265,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[2].device_class, "measurement");
       sprintf(results[2].unit, "dBm");
       sprintf(results[2].device_class, "signal_strength");
-      sprintf(results[2].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[2].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 3;
       }
@@ -287,7 +293,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].device_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
-      sprintf(results[1].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[1].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 2;
       }
@@ -301,6 +307,8 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[0].unit, "lx");
       float lux = (float) file->light_file.light_level / 10;
       sprintf(results[0].state, "%.1f", lux);
+      DPRINT("Light file category: ");
+      DPRINTLN(results[0].category);
 
       sprintf(results[1].uid, "%s", results[0].uid);
       sprintf(results[1].name, "%s_light_raw", results[0].uid);
@@ -328,7 +336,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[4].device_class, "measurement");
       sprintf(results[4].unit, "dBm");
       sprintf(results[4].device_class, "signal_strength");
-      sprintf(results[4].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[4].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 5;
       }
@@ -347,7 +355,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].device_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
-      sprintf(results[1].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[1].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 2;
       }
@@ -385,7 +393,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[4].device_class, "measurement");
       sprintf(results[4].unit, "dBm");
       sprintf(results[4].device_class, "signal_strength");
-      sprintf(results[4].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[4].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 5;
       }
@@ -417,7 +425,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[3].device_class, "measurement");
       sprintf(results[3].unit, "dBm");
       sprintf(results[3].device_class, "signal_strength");
-      sprintf(results[3].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[3].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 4;
       }
@@ -445,7 +453,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[2].device_class, "measurement");
       sprintf(results[2].unit, "dBm");
       sprintf(results[2].device_class, "signal_strength");
-      sprintf(results[2].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[2].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 3;
       }
@@ -479,7 +487,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[3].device_class, "measurement");
       sprintf(results[3].unit, "dBm");
       sprintf(results[3].device_class, "signal_strength");
-      sprintf(results[3].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[3].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 4;
       }
@@ -565,18 +573,9 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[11].device_class, "measurement");
       sprintf(results[11].unit, "dBm");
       sprintf(results[11].device_class, "signal_strength");
-      sprintf(results[11].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[11].state, "%i", custom_file_contents->rssi);
 
-      sprintf(results[12].uid, "%s", results[0].uid);
-      sprintf(results[12].name, "%s_received_signal_strength", results[0].uid);
-      sprintf(results[12].component, "sensor");
-      sprintf(results[12].category, "diagnostic");
-      sprintf(results[12].device_class, "measurement");
-      sprintf(results[12].unit, "dBm");
-      sprintf(results[12].device_class, "signal_strength");
-      sprintf(results[12].state, "%i", file->light_config_file.interrupt_check_interval);
-
-      number_of_publish_objects = 13;
+      number_of_publish_objects = 12;
       }
       break;
     case PIR_CONFIG_FILE_ID:
@@ -640,7 +639,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[8].device_class, "measurement");
       sprintf(results[8].unit, "dBm");
       sprintf(results[8].device_class, "signal_strength");
-      sprintf(results[8].state, "%i", file->light_config_file.interrupt_check_interval);
+      sprintf(results[8].state, "%i", custom_file_contents->rssi);
 
       number_of_publish_objects = 9;
       }

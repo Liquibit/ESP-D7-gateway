@@ -55,12 +55,14 @@ uint8_t alp_parse(uint8_t* buffer, uint8_t payload_length) {
   while(payload_length > 0) {
     switch (buffer[index++] & 0x3F) {
       case ALP_OP_RETURN_FILE_DATA:
-        file_id = buffer[index++];
-        offset = buffer[index++];
-        length = buffer[index++];
-        save_custom_file(&buffer[index], file_id, offset, length);
-        index += length;
-        payload_length -= 4 + length;
+        {
+          file_id = buffer[index++];
+          offset = buffer[index++];
+          length = buffer[index++];
+          save_custom_file(&buffer[index], file_id, offset, length);
+          index += length;
+          payload_length -= 4 + length;
+        }
         break;
       case ALP_OP_STATUS:
         {
@@ -72,7 +74,7 @@ uint8_t alp_parse(uint8_t* buffer, uint8_t payload_length) {
           uint8_t linkbudget = buffer[index++];
           // uid is at index 12
           index += 7;
-          memcpy(current_uid, buffer, 8);
+          memcpy(current_uid, &buffer[index], 8);
           index += 8;
           print_uid();
           
@@ -80,9 +82,11 @@ uint8_t alp_parse(uint8_t* buffer, uint8_t payload_length) {
           break;
         }
       default: //not implemented alp
+        {
         DPRINTLN("unknown alp command, skipping message");
         index += payload_length - 1;
         payload_length = 0;
+        }
         break;
     }
   }
