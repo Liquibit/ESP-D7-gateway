@@ -61,6 +61,6 @@ bool WiFi_interface_is_connected() {
   return WiFi.status() == WL_CONNECTED;
 }
 
-bool WiFi_get_ip_by_name(char* host, IPAddress resulting_ip) {
-  return WiFi.hostByName(host, resulting_ip);
+bool WiFi_get_ip_by_name(char* host, IPAddress* resulting_ip) {
+  return WiFi.hostByName(host, *resulting_ip);
 }

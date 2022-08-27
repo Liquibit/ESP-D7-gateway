@@ -118,14 +118,11 @@ void handlePost() {
   if(server.hasArg("SSID")) {
     String ssid = server.arg("SSID");
     if(ssid.length()) {
-      DPRINTLN("gotten ssid, parsing");
       *cached_data.wifi_ssid.length = ssid.length();
       DPRINTLN(*cached_data.wifi_ssid.length);
       ssid.toCharArray(cached_data.wifi_ssid.content, ssid.length()+1); 
-      DPRINTLN("got em");
     }
   }
-  DPRINTLN("gotten ssid");
   if(server.hasArg("password")) {
     String pw = server.arg("password");
     if(pw.length()) {

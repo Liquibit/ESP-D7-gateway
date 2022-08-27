@@ -31,11 +31,13 @@ static bool update_configuration(persisted_data_t persisted_data) {
     IPAddress server_ip;
     server_ip = MDNS.queryHost(persisted_data.mqtt_broker.content);
     if(server_ip.toString().equals("0.0.0.0")) {
-        if(!WiFi_get_ip_by_name(persisted_data.mqtt_broker.content, server_ip)) {
+        if(!WiFi_get_ip_by_name(persisted_data.mqtt_broker.content, &server_ip)) {
             DPRINTLN("No valid IP found for mqtt broker");
             return false;
         }
     }
+    DPRINT("Set mqtt server to ");
+    DPRINTLN(server_ip);
     mqtt_client.setServer(server_ip, *persisted_data.mqtt_port);
     configuration_changed = false;
     return true;
@@ -55,6 +57,8 @@ bool mqtt_interface_connect(char* client_name, persisted_data_t persisted_data) 
     // configuration valid
     if(!update_configuration(persisted_data))
         return false;
+
+    DPRINTLN("trying to connect to mqtt");
 
     // connect successfull
     if(!mqtt_client.connect(client_name, persisted_data.mqtt_user.content, persisted_data.mqtt_password.content))
