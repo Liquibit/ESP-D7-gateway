@@ -202,8 +202,8 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
   switch(file_id) {
     case BUTTON_FILE_ID:
       {
-      sprintf(results[0].name, "button%d", file->button_file.button_id);
-      sprintf(results[0].object_id, "%s_button%d", results[0].uid, file->button_file.button_id);
+      sprintf(results[0].name, "button%d", file->button_file.button_id+1);
+      sprintf(results[0].object_id, "%s_button%d", results[0].uid, file->button_file.button_id+1);
       sprintf(results[0].component, "binary_sensor");
       sprintf(results[0].state, "%s", file->button_file.mask ? "ON" : "OFF");
       results[0].default_shown = true;
