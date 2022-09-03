@@ -2,18 +2,18 @@
 #include <Arduino.h>
 
 #define BUTTON_FILE_ID             51
-#define HALL_EFFECT_FILE_ID        52
 #define HUMIDITY_FILE_ID           53
 #define PUSH7_STATE_FILE_ID        56
 #define LIGHT_FILE_ID              57
 #define PIR_FILE_ID                58
+#define HALL_EFFECT_FILE_ID        59
 
 #define BUTTON_CONFIG_FILE_ID      61
-#define HALL_EFFECT_CONFIG_FILE_ID 62
 #define HUMIDITY_CONFIG_FILE_ID    63
 #define PUSH7_CONFIG_STATE_FILE_ID 66
 #define LIGHT_CONFIG_FILE_ID       67
 #define PIR_CONFIG_FILE_ID         68
+#define HALL_EFFECT_CONFIG_FILE_ID 69
 
 typedef struct {
     union {
