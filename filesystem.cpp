@@ -1,7 +1,7 @@
 #include "filesystem.h"
 #include <EEPROM.h>
 
-#define MAGIC_NUMBER 239
+#define MAGIC_NUMBER 238
 
 #define DEFAULT_MQTT_PORT 1883
 

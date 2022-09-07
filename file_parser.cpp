@@ -102,11 +102,12 @@ typedef struct {
 
 typedef struct {
     union {
-        uint8_t bytes[6];
+        uint8_t bytes[7];
         struct {
             uint32_t interval;
             bool led_flash_state;
             bool enabled;
+            uint8_t tx_power;
         } __attribute__((__packed__));
     };
 } push7_state_config_file_t;
@@ -213,7 +214,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].uid, "%s", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
-      sprintf(results[1].device_class, "measurement");
+      sprintf(results[1].state_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
@@ -236,7 +237,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
-      sprintf(results[1].device_class, "measurement");
+      sprintf(results[1].state_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
@@ -275,7 +276,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[2].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[2].component, "sensor");
       sprintf(results[2].category, "diagnostic");
-      sprintf(results[2].device_class, "measurement");
+      sprintf(results[2].state_class, "measurement");
       sprintf(results[2].unit, "dBm");
       sprintf(results[2].device_class, "signal_strength");
       sprintf(results[2].state, "%i", custom_file_contents->rssi);
@@ -307,7 +308,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
-      sprintf(results[1].device_class, "measurement");
+      sprintf(results[1].state_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
@@ -358,7 +359,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[4].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[4].component, "sensor");
       sprintf(results[4].category, "diagnostic");
-      sprintf(results[4].device_class, "measurement");
+      sprintf(results[4].state_class, "measurement");
       sprintf(results[4].unit, "dBm");
       sprintf(results[4].device_class, "signal_strength");
       sprintf(results[4].state, "%i", custom_file_contents->rssi);
@@ -381,7 +382,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[1].component, "sensor");
       sprintf(results[1].category, "diagnostic");
-      sprintf(results[1].device_class, "measurement");
+      sprintf(results[1].state_class, "measurement");
       sprintf(results[1].unit, "dBm");
       sprintf(results[1].device_class, "signal_strength");
       sprintf(results[1].state, "%i", custom_file_contents->rssi);
@@ -429,7 +430,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[4].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[4].component, "sensor");
       sprintf(results[4].category, "diagnostic");
-      sprintf(results[4].device_class, "measurement");
+      sprintf(results[4].state_class, "measurement");
       sprintf(results[4].unit, "dBm");
       sprintf(results[4].device_class, "signal_strength");
       sprintf(results[4].state, "%i", custom_file_contents->rssi);
@@ -469,7 +470,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[3].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[3].component, "sensor");
       sprintf(results[3].category, "diagnostic");
-      sprintf(results[3].device_class, "measurement");
+      sprintf(results[3].state_class, "measurement");
       sprintf(results[3].unit, "dBm");
       sprintf(results[3].device_class, "signal_strength");
       sprintf(results[3].state, "%i", custom_file_contents->rssi);
@@ -503,7 +504,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[2].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[2].component, "sensor");
       sprintf(results[2].category, "diagnostic");
-      sprintf(results[2].device_class, "measurement");
+      sprintf(results[2].state_class, "measurement");
       sprintf(results[2].unit, "dBm");
       sprintf(results[2].device_class, "signal_strength");
       sprintf(results[2].state, "%i", custom_file_contents->rssi);
@@ -541,17 +542,26 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       results[2].default_shown = true;
 
       sprintf(results[3].uid, "%s", results[0].uid);
-      sprintf(results[3].name, "received signal strength");
-      sprintf(results[3].object_id, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[3].name, "transmit power");
+      sprintf(results[3].object_id, "%s_transmit_power", results[0].uid);
       sprintf(results[3].component, "sensor");
       sprintf(results[3].category, "diagnostic");
-      sprintf(results[3].device_class, "measurement");
-      sprintf(results[3].unit, "dBm");
-      sprintf(results[3].device_class, "signal_strength");
-      sprintf(results[3].state, "%i", custom_file_contents->rssi);
+      sprintf(results[3].unit, "dB");
+      sprintf(results[3].state, "%i", file->push7_state_config_file.tx_power);
       results[3].default_shown = true;
 
-      number_of_publish_objects = 4;
+      sprintf(results[4].uid, "%s", results[0].uid);
+      sprintf(results[4].name, "received signal strength");
+      sprintf(results[4].object_id, "%s_received_signal_strength", results[0].uid);
+      sprintf(results[4].component, "sensor");
+      sprintf(results[4].category, "diagnostic");
+      sprintf(results[4].state_class, "measurement");
+      sprintf(results[4].unit, "dBm");
+      sprintf(results[4].device_class, "signal_strength");
+      sprintf(results[4].state, "%i", custom_file_contents->rssi);
+      results[4].default_shown = true;
+
+      number_of_publish_objects = 5;
       }
       break;
     case LIGHT_CONFIG_FILE_ID:
@@ -655,7 +665,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[11].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[11].component, "sensor");
       sprintf(results[11].category, "diagnostic");
-      sprintf(results[11].device_class, "measurement");
+      sprintf(results[11].state_class, "measurement");
       sprintf(results[11].unit, "dBm");
       sprintf(results[11].device_class, "signal_strength");
       sprintf(results[11].state, "%i", custom_file_contents->rssi);
@@ -739,7 +749,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[8].object_id, "%s_received_signal_strength", results[0].uid);
       sprintf(results[8].component, "sensor");
       sprintf(results[8].category, "diagnostic");
-      sprintf(results[8].device_class, "measurement");
+      sprintf(results[8].state_class, "measurement");
       sprintf(results[8].unit, "dBm");
       sprintf(results[8].device_class, "signal_strength");
       sprintf(results[8].state, "%i", custom_file_contents->rssi);
