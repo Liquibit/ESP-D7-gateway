@@ -9,6 +9,8 @@
 const IPAddress public_dns_ip(8, 8, 8, 8);
 DNSClient dns_client;
 
+static bool first_try_connect = true;
+
 void WiFi_init(const char* access_point_ssid) {
   WiFi.mode(WIFI_MODE_APSTA);
   WiFi.disconnect();
@@ -18,6 +20,10 @@ void WiFi_init(const char* access_point_ssid) {
 
 bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_length) {
   if(WiFi.status() != WL_CONNECTED) {
+    if(first_try_connect) {
+      DPRINTLN("Wi-Fi disconnected, trying to reconnect");
+      first_try_connect = false;
+    }
     if(ssid_length == 0) {
       return false;
     }
@@ -49,8 +55,10 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
     if(WiFi.status() == WL_CONNECTED) {
       WiFi.mode(WIFI_STA);
       dns_client.begin(public_dns_ip);
+      first_try_connect = true;
       return true;
     } else {
+      DPRINTLN("Wi-Fi SSID found but failed to connect");
       return false;
     }
   } else

@@ -6,6 +6,7 @@
 #include "alp.h"
 #include "file_parser.h"
 #include "mqtt_interface.h"
+#include <esp_task_wdt.h>
 
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
@@ -17,6 +18,9 @@
 #define MAX_SERIAL_BUFFER_SIZE 256
 #define MAX_CUSTOM_FILES 2
 #define MAX_PUBLISH_OBJECTS 12
+
+// 10 seconds timeout WDT
+#define WDT_TIMEOUT 10
 
 const char* ssid = "Dash7-gateway";
 
@@ -69,6 +73,9 @@ void setup()
 {
   DBEGIN(115200);
 
+  esp_task_wdt_init(WDT_TIMEOUT, true); // set timeout and indicate hardware reset on timeout
+  esp_task_wdt_add(NULL); // add current thread to WDT watch
+
   uint64_t MAC = ESP.getEfuseMac();
   uint8_t* MAC_ptr = (uint8_t*) &MAC;
   sprintf(mac_id_string, "%02x%02x%02x%02x%02x%02x", MAC_ptr[5], MAC_ptr[4], MAC_ptr[3], MAC_ptr[2], MAC_ptr[1], MAC_ptr[0]);
@@ -83,6 +90,8 @@ void setup()
 
   WiFi_init(ssid);
   webserver_init(ssid, &connection_details_changed, linked_data);
+
+  esp_task_wdt_reset();
 
   DPRINTLN("setup complete");
 }
@@ -106,4 +115,5 @@ void loop()
     }
   }
   webserver_handle();
+  esp_task_wdt_reset();
 }
