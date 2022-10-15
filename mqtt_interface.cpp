@@ -126,8 +126,11 @@ void mqtt_interface_publish(publish_object_t* objects, uint8_t amount) {
             sprintf(sw_version_string, ",\"sw\":\"%s\"", objects[index].sw_version);
         else
             sprintf(sw_version_string, "");
+
+        if(objects[index].product[0] == 0) // default to Push7
+            sprintf(objects[index].product, "Push7");
         
-        sprintf(device_string, "\"mf\":\"LiQuiBit\",\"name\":\"Push7_%s\",\"ids\":[\"%s\"]%s%s", objects[index].uid, objects[index].uid, model_string, sw_version_string);
+        sprintf(device_string, "\"mf\":\"LiQuiBit\",\"name\":\"%s_%s\",\"ids\":[\"%s\"]%s%s", objects[index].product, objects[index].uid, objects[index].uid, model_string, sw_version_string);
 
 
         if(objects[index].category[0] != 0)

@@ -44,7 +44,10 @@ typedef struct {
   uint8_t length;
   uint8_t offset;
   uint8_t buffer[255];
-  uint8_t uid[8];
+  union {
+    uint64_t chip_id;
+    uint8_t uid[8];
+  };
   uint8_t rssi;
 } custom_file_contents_t;
 
@@ -61,7 +64,28 @@ typedef struct {
   char sw_version[4];
   char model[20];
   char state[20];
+  char product[15];
   bool default_shown;
 } publish_object_t;
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * INTERNAL FILES                                                                                                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define GATEWAY_STATUS_FILE_ID     254
+
+typedef struct {
+    union {
+        uint8_t bytes[5];
+        struct {
+            uint8_t heartbeat_counter;
+            uint8_t processed_messages;
+            uint8_t dash7_modem_reboot_counter;
+            uint8_t status_interval;
+            bool rebooted;
+        };
+    };
+} gateway_status_file_t;
 
 #endif

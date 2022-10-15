@@ -50,15 +50,16 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
       delay(WIFI_DELAY_RETRY);
       total_delay += WIFI_DELAY_RETRY;
     }
-    DPRINTLN("connected to Wi-Fi");
 
     if(WiFi.status() == WL_CONNECTED) {
+      DPRINTLN("connected to Wi-Fi");
       WiFi.mode(WIFI_STA);
       dns_client.begin(public_dns_ip);
       first_try_connect = true;
       return true;
     } else {
-      DPRINTLN("Wi-Fi SSID found but failed to connect");
+      DPRINT("Wi-Fi SSID found but failed to connect: ");
+      DPRINTLN(WiFi.status());
       return false;
     }
   } else

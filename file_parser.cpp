@@ -178,6 +178,7 @@ typedef struct {
     light_config_file_t light_config_file;
     hall_effect_file_t hall_effect_file;
     hall_effect_config_file_t hall_effect_config_file;
+    gateway_status_file_t gateway_status_file;
   };
 } custom_file_t;
 
@@ -756,6 +757,60 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       results[8].default_shown = false;
 
       number_of_publish_objects = 9;
+      }
+      break;
+    case GATEWAY_STATUS_FILE_ID:
+      {
+      sprintf(results[0].name, "heartbeat counter");
+      sprintf(results[0].object_id, "%s_heartbeat_counter", results[0].uid);
+      sprintf(results[0].component, "sensor");
+      sprintf(results[0].state_class, "measurement");
+      sprintf(results[0].state, "%i", file->gateway_status_file.heartbeat_counter);
+      sprintf(results[0].product, "IOWAY");
+      results[0].default_shown = true;
+
+      sprintf(results[0].sw_version, "0");
+
+      sprintf(results[0].model, "IOWAY_v0");
+
+      sprintf(results[1].uid, "%s", results[0].uid);
+      sprintf(results[1].name, "processed messages");
+      sprintf(results[1].object_id, "%s_processed_messages", results[0].uid);
+      sprintf(results[1].component, "sensor");
+      sprintf(results[1].state_class, "measurement");
+      sprintf(results[1].state, "%i", file->gateway_status_file.processed_messages);
+      sprintf(results[1].product, "IOWAY");
+      results[1].default_shown = true;
+
+      sprintf(results[2].uid, "%s", results[0].uid);
+      sprintf(results[2].name, "DASH7 modem reboots");
+      sprintf(results[2].object_id, "%s_dash7_modem_reboots", results[0].uid);
+      sprintf(results[2].component, "sensor");
+      sprintf(results[2].state_class, "measurement");
+      sprintf(results[2].state, "%i", file->gateway_status_file.dash7_modem_reboot_counter);
+      sprintf(results[2].product, "IOWAY");
+      results[2].default_shown = true;
+
+      sprintf(results[3].uid, "%s", results[0].uid);
+      sprintf(results[3].name, "Status interval");
+      sprintf(results[3].object_id, "%s_status_interval", results[0].uid);
+      sprintf(results[3].component, "sensor");
+      sprintf(results[3].device_class, "duration");
+      sprintf(results[3].category, "diagnostic");
+      sprintf(results[3].unit, "s");
+      sprintf(results[3].state, "%i", file->gateway_status_file.status_interval);
+      sprintf(results[3].product, "IOWAY");
+      results[3].default_shown = true;
+
+      sprintf(results[4].uid, "%s", results[0].uid);
+      sprintf(results[4].name, "rebooted");
+      sprintf(results[4].object_id, "%s_rebooted", results[0].uid);
+      sprintf(results[4].component, "binary_sensor");
+      sprintf(results[4].state, "%s", file->gateway_status_file.rebooted ? "ON" : "OFF");
+      sprintf(results[4].product, "IOWAY");
+      results[4].default_shown = true;
+
+      number_of_publish_objects = 5;
       }
       break;
   }
