@@ -266,7 +266,7 @@ uint8_t parse_custom_files(custom_file_contents_t* custom_file_contents, publish
       sprintf(results[1].component, "sensor");
       sprintf(results[1].device_class, "humidity");
       sprintf(results[1].state_class, "measurement");
-      sprintf(results[1].unit, "%");
+      sprintf(results[1].unit, "%%");
       sprintf(results[1].icon, "mdi:water-percent");
       int16_t percentage = round((float) file->humidity_file.humidity / 10);
       sprintf(results[1].state, "%i", percentage);
