@@ -11,11 +11,13 @@
 
 //#define DATAPRINT(...) Serial2.print(__VA_ARGS__)
 //#define DATAPRINTLN(...) Serial2.println(__VA_ARGS__)
+//#define DATAWRITE(...) Serial2.write(__VA_ARGS__)
 //#define DATAREAD(...) Serial2.read(__VA_ARGS__)
 //#define DATAREADY(...) Serial2.available()
 //#define DATABEGIN(...) Serial2.begin(__VA_ARGS__)
 #define DATAPRINT(...) Serial.print(__VA_ARGS__)
 #define DATAPRINTLN(...) Serial.println(__VA_ARGS__)
+#define DATAWRITE(...) Serial.write(__VA_ARGS__)
 #define DATAREAD(...) Serial.read(__VA_ARGS__)
 #define DATAREADY(...) Serial.available()
 #define DATABEGIN(...) Serial.begin(__VA_ARGS__)
