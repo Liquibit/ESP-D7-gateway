@@ -2,6 +2,8 @@
 #define STRUCTURES_H
 #include <Arduino.h>
 
+#define DATARATE 115200
+
 //#define DBEGIN(...) Serial.begin(__VA_ARGS__)
 #define DPRINT(...) Serial.print(__VA_ARGS__)
 #define DPRINTLN(...) Serial.println(__VA_ARGS__)
@@ -20,7 +22,11 @@
 #define DATAWRITE(...) Serial.write(__VA_ARGS__)
 #define DATAREAD(...) Serial.read(__VA_ARGS__)
 #define DATAREADY(...) Serial.available()
-#define DATABEGIN(...) Serial.begin(__VA_ARGS__)
+#if defined(ARDUINO_ESP32_POE)
+#define DATABEGIN(...) Serial.begin(DATARATE, SERIAL_8N1, RX1, TX1, false)
+#else
+#define DATABEGIN(...) Serial.begin(DATARATE)
+#endif
 //#define DATAPRINT(...)
 //#define DATAPRINTLN(...)
 //#define DATAREAD(...)

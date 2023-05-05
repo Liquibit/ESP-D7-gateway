@@ -6,6 +6,8 @@
 #define WIFI_TIMEOUT 20000
 #define WIFI_DELAY_RETRY 500
 
+static bool advertising;
+
 const IPAddress public_dns_ip(8, 8, 8, 8);
 DNSClient dns_client;
 
@@ -13,6 +15,7 @@ static bool first_try_connect = true;
 
 void WiFi_init(const char* access_point_ssid) {
   WiFi.mode(WIFI_MODE_APSTA);
+  advertising = true;
   WiFi.disconnect();
   
   WiFi.softAP(access_point_ssid);
@@ -53,9 +56,7 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
 
     if(WiFi.status() == WL_CONNECTED) {
       DPRINTLN("connected to Wi-Fi");
-      WiFi.mode(WIFI_STA);
-      dns_client.begin(public_dns_ip);
-      first_try_connect = true;
+      WiFi_advertising_disable();
       return true;
     } else {
       DPRINT("Wi-Fi SSID found but failed to connect: ");
@@ -68,6 +69,15 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
 
 bool WiFi_interface_is_connected() {
   return WiFi.status() == WL_CONNECTED;
+}
+
+void WiFi_advertising_disable() {
+  if(advertising) {
+    WiFi.mode(WIFI_STA);
+    dns_client.begin(public_dns_ip);
+    first_try_connect = true;
+    advertising = false;
+  }
 }
 
 bool WiFi_get_ip_by_name(char* host, IPAddress* resulting_ip) {

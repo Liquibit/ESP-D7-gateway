@@ -9,6 +9,8 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
 
 bool WiFi_interface_is_connected();
 
+void WiFi_advertising_disable();
+
 bool WiFi_get_ip_by_name(char* host, IPAddress* resulting_ip);
 
 #endif
