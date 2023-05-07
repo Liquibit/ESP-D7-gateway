@@ -1,5 +1,5 @@
 #include "WiFi_interface.h"
-#include "WiFi.h"
+#include <ETH.h>
 #include <Dns.h>
 #include "structures.h"
 
@@ -13,12 +13,18 @@ DNSClient dns_client;
 
 static bool first_try_connect = true;
 
+static unsigned long next_try_timestamp = 0;
+
 void WiFi_init(const char* access_point_ssid) {
   WiFi.mode(WIFI_MODE_APSTA);
   advertising = true;
   WiFi.disconnect();
   
   WiFi.softAP(access_point_ssid);
+
+#if defined(ARDUINO_ESP32_POE)
+  ETH.begin();
+#endif
 }
 
 bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_length) {
@@ -27,9 +33,12 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
       DPRINTLN("Wi-Fi disconnected, trying to reconnect");
       first_try_connect = false;
     }
-    if(ssid_length == 0) {
+    if(ssid_length == 0)
       return false;
-    }
+
+    if(millis() < next_try_timestamp) // let it try before 
+      return false;
+
     int n = WiFi.scanNetworks();
     if(n < 1)
       return false;
@@ -45,26 +54,13 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
         break;
       }
     }
-    if(!found)
-      return false;
+    next_try_timestamp = millis() + WIFI_TIMEOUT;
 
-    int total_delay = 0;
-    while((WiFi.status() != WL_CONNECTED) && (total_delay < WIFI_TIMEOUT)) {
-      delay(WIFI_DELAY_RETRY);
-      total_delay += WIFI_DELAY_RETRY;
-    }
-
-    if(WiFi.status() == WL_CONNECTED) {
-      DPRINTLN("connected to Wi-Fi");
-      WiFi_advertising_disable();
-      return true;
-    } else {
-      DPRINT("Wi-Fi SSID found but failed to connect: ");
-      DPRINTLN(WiFi.status());
-      return false;
-    }
-  } else
-    return true;
+    return false;
+  } else {
+    WiFi_advertising_disable();
+    return true;  
+  }
 }
 
 bool WiFi_interface_is_connected() {
@@ -73,6 +69,7 @@ bool WiFi_interface_is_connected() {
 
 void WiFi_advertising_disable() {
   if(advertising) {
+    DPRINTLN("Interface connected, disabling access point");
     WiFi.mode(WIFI_STA);
     dns_client.begin(public_dns_ip);
     first_try_connect = true;

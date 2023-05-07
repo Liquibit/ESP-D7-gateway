@@ -7,7 +7,6 @@
 #include "file_parser.h"
 #include "mqtt_interface.h"
 #include <esp_task_wdt.h>
-//#include "ethernet_interface.h"
 
 #define LOG_LOCAL_LEVEL ESP_LOG_INFO
 
@@ -96,10 +95,6 @@ void setup()
   filesystem_init(FILESYSTEM_SIZE);
   filesystem_read(linked_data);
 
-  #if defined(ARDUINO_ESP32_POE)
-  ethernet_init();
-  #endif
-
   WiFi_init(ssid);
   webserver_init(ssid, &connection_details_changed, linked_data);
 
@@ -137,10 +132,7 @@ static void gateway_status_triggered() {
 
 void loop()
 {
-  bool connected = ethernet_interface_is_connected();
-  if(!connected)
-    connected = WiFi_connect(client_ssid_string, ssid_length, client_password_string, password_length);
-  if(connected) {
+  if(WiFi_connect(client_ssid_string, ssid_length, client_password_string, password_length)) {
     if(mqtt_interface_connect(mqtt_client_string, linked_data)) {
       serial_handle();
       uint8_t serial_payload_length = serial_parse();
