@@ -15,6 +15,36 @@ static bool first_try_connect = true;
 
 static unsigned long next_try_timestamp = 0;
 
+static bool eth_connected = false;
+
+void WiFiEvent(WiFiEvent_t event)
+{
+  switch (event) {
+    case ARDUINO_EVENT_ETH_START:
+      break;
+    case ARDUINO_EVENT_ETH_CONNECTED:
+      DPRINTLN("ETH Connected");
+      break;
+    case ARDUINO_EVENT_ETH_GOT_IP:
+      DPRINT("ETH MAC: ");
+      DPRINT(ETH.macAddress());
+      DPRINT(", IPv4: ");
+      DPRINTLN(ETH.localIP());
+      eth_connected = true;
+      break;
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
+      DPRINTLN("ETH Disconnected");
+      eth_connected = false;
+      break;
+    case ARDUINO_EVENT_ETH_STOP:
+      DPRINTLN("ETH Stopped");
+      eth_connected = false;
+      break;
+    default:
+      break;
+  }
+}
+
 void WiFi_init(const char* access_point_ssid) {
   WiFi.mode(WIFI_MODE_APSTA);
   advertising = true;
@@ -22,13 +52,18 @@ void WiFi_init(const char* access_point_ssid) {
   
   WiFi.softAP(access_point_ssid);
 
+  ETH.setHostname("Dash7-gateway");
+  WiFi.setHostname("Dash7-gateway");
+
+  WiFi.onEvent(WiFiEvent);
+
 #if defined(ARDUINO_ESP32_POE)
   ETH.begin();
 #endif
 }
 
 bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_length) {
-  if(WiFi.status() != WL_CONNECTED) {
+  if((WiFi.status() != WL_CONNECTED) && !eth_connected) {
     if(first_try_connect) {
       DPRINTLN("Wi-Fi disconnected, trying to reconnect");
       first_try_connect = false;
