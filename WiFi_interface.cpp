@@ -63,7 +63,7 @@ void WiFi_init(const char* access_point_ssid) {
 }
 
 bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_length) {
-  if((WiFi.status() != WL_CONNECTED) && !eth_connected) {
+  if(!WiFi_interface_is_connected()) {
     if(first_try_connect) {
       DPRINTLN("Wi-Fi disconnected, trying to reconnect");
       first_try_connect = false;
@@ -99,7 +99,7 @@ bool WiFi_connect(char* ssid, int ssid_length, char* password, int password_leng
 }
 
 bool WiFi_interface_is_connected() {
-  return WiFi.status() == WL_CONNECTED;
+  return (WiFi.status() == WL_CONNECTED) || eth_connected;
 }
 
 void WiFi_advertising_disable() {
