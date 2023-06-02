@@ -3,7 +3,22 @@
 #include <PubSubClient.h>
 #include <ESPmDNS.h>
 
+#include <ArduinoJson.h>
+
 #include <WebServer.h>
+
+#include <ArduinoWebsockets.h>
+using namespace websockets;
+WebsocketsClient ws_channel;
+const String token = "";
+const String ws_hostname = "";
+const String ws_service = "";
+const String ws_ghost_id = "";
+const String ws_action = "";
+const String websockets_server_host = ws_hostname + ws_service + "/" + ws_ghost_id +  ws_action;
+const char cert[] PROGMEM = \
+"-----BEGIN CERTIFICATE-----\n" \
+"-----END CERTIFICATE-----\n";
 
 #define MAX_MQTT_LENGTH 250
 
@@ -45,35 +60,102 @@ static bool update_configuration(persisted_data_t persisted_data) {
 
 
 bool mqtt_interface_config_changed(persisted_data_t persisted_data) {
-    configuration_changed = true;
-    return update_configuration(persisted_data);
+    // configuration_changed = true;
+    // return update_configuration(persisted_data);
+    return true;
+}
+
+void onEventsCallback(WebsocketsEvent event, String data) {
+    if(event == WebsocketsEvent::ConnectionOpened) {
+        DPRINTLN("Connnection Opened");
+    } else if(event == WebsocketsEvent::ConnectionClosed) {
+        DPRINTLN("Connnection Closed");
+    } else if(event == WebsocketsEvent::GotPing) {
+        DPRINTLN("Got a Ping!");
+    } else if(event == WebsocketsEvent::GotPong) {
+        DPRINTLN("Got a Pong!");
+    }
+}
+
+void handleReceivedMessage(String message) {
+    DPRINT(F("deserializeJson() failed: "));
+    DPRINTLN(message);
+}
+
+
+void sendToken() {
+    StaticJsonDocument<256> doc;
+    JsonObject message = doc.to<JsonObject>();
+    message["token"] = token;
+    String payload = "";
+    serializeJson(message, payload);
+    ws_channel.send(payload);
+}
+
+void sendServiceURL() {
+    StaticJsonDocument<256> doc;
+    JsonObject message = doc.to<JsonObject>();
+    message["url"] = ws_service + "/" + ws_ghost_id;
+    String payload = "";
+    serializeJson(message, payload);
+    ws_channel.send(payload);
 }
 
 bool mqtt_interface_connect(char* client_name, persisted_data_t persisted_data) {
     // already connected
-    if(mqtt_client.connected())
-        return true;
+    // if(mqtt_client.connected())
+    //     return true;
 
     // configuration valid
-    if(!update_configuration(persisted_data))
-        return false;
+    // if(!update_configuration(persisted_data))
+    //     return false;
 
-    DPRINTLN("trying to connect to mqtt");
+    // DPRINTLN("trying to connect to mqtt");
 
     // connect successfull
-    if(!mqtt_client.connect(client_name, persisted_data.mqtt_user.content, persisted_data.mqtt_password.content))
-        return false;
+
+    static bool inited = false;
+    if(!inited)
+    {
+      ws_channel.onMessage([&](WebsocketsMessage message) {
+          handleReceivedMessage(message.data());
+      });
+
+      ws_channel.onEvent(onEventsCallback);
+
+      ws_channel.setCACert(cert);
+
+      bool connected = ws_channel.connect(websockets_server_host);
+      if(connected) {
+          DPRINTLN("Connected!");
+          sendToken();
+      } else {
+          DPRINTLN("Not connected");
+      }
+      inited = true;
+    }
+    // if(!mqtt_client.connect(client_name, persisted_data.mqtt_user.content, persisted_data.mqtt_password.content))
+    //     return false;
 
     //reconnect on subscriptions
-    DPRINTLN("connected to MQTT");
+    // DPRINTLN("connected to MQTT");
     return true;
 }
 
 void mqtt_interface_handle() {
-    mqtt_client.loop();
+    // mqtt_client.loop();
 }
 
 static bool publish_in_parts(char* topic, char* to_publish, uint32_t length) {
+
+    // StaticJsonDocument<256> doc;
+    // JsonObject message = doc.to<JsonObject>();
+    // message["url"] = ws_service + "/" + ws_ghost_id;
+    // message["PAYLOAD"] = 
+    // String payload = "";
+    // serializeJson(message, payload);
+    ws_channel.send(to_publish);
+/*
     if(length < MAX_MQTT_LENGTH) {
         if(!mqtt_client.publish(topic, to_publish, true)) {
             DPRINTLN("publish of single frame failed, abort");
@@ -93,7 +175,7 @@ static bool publish_in_parts(char* topic, char* to_publish, uint32_t length) {
     if(!mqtt_client.endPublish()) {
         DPRINTLN("end publish went wrong, abort");
         return false;
-    }
+    }*/
     return true;
 }
 
@@ -158,8 +240,8 @@ void mqtt_interface_publish(publish_object_t* objects, uint8_t amount) {
         else
             sprintf(unit_string, "");
         
-        sprintf(config_json, "{\"dev\":{%s},\"name\":\"%s\",\"qos\":1,\"uniq_id\":\"%s\",\"obj_id\":\"%s\",\"enabled_by_default\":%s,\"stat_t\":\"%s\"%s%s%s%s%s}", 
-    device_string, objects[index].name, objects[index].object_id, objects[index].object_id, objects[index].default_shown ? "true" : "false", 
+        sprintf(config_json, "{\"url\":\"%s\",\"PAYLOAD\":{\"dev\":{%s},\"name\":\"%s\",\"qos\":1,\"uniq_id\":\"%s\",\"obj_id\":\"%s\",\"enabled_by_default\":%s,\"stat_t\":\"%s\"%s%s%s%s%s}}", 
+    ws_service + "/" + ws_ghost_id, device_string, objects[index].name, objects[index].object_id, objects[index].object_id, objects[index].default_shown ? "true" : "false", 
     state_topic, category_string, device_class_string, icon_string, state_class_string, unit_string);
 
         DPRINTLN(config_json);
