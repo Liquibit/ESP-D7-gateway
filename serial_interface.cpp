@@ -1,8 +1,6 @@
 #include "serial_interface.h"
 #include "CRC16.h"
 
-#define DATARATE 115200
-
 #define MODEM_HEADER_SIZE      7
 #define MODEM_HEADER_SYNC_BYTE 0xC0
 #define MODEM_HEADER_VERSION   0
@@ -31,7 +29,7 @@ static uint16_t get_serial_size();
 static void memcpy_serial_overflow(uint8_t* dest, uint8_t length, uint8_t offset);
 
 void serial_interface_init(modem_rebooted_callback reboot_callback, uint8_t* output_buffer_pointer) {
-  DATABEGIN(DATARATE);
+  DATABEGIN();
   reboot_cb = reboot_callback;
   output_buffer = output_buffer_pointer;
 

@@ -2,27 +2,37 @@
 #define STRUCTURES_H
 #include <Arduino.h>
 
-//#define DBEGIN(...) Serial.begin(__VA_ARGS__)
+#define DATARATE 115200
+
+#if defined(ARDUINO_ESP32_POE)
+  #define DBEGIN(...) Serial.begin(DATARATE, SERIAL_8N1, RX, TX, false)
+#else
+  #define DBEGIN(...)
+#endif
 #define DPRINT(...) Serial.print(__VA_ARGS__)
 #define DPRINTLN(...) Serial.println(__VA_ARGS__)
-#define DBEGIN(...)
 //#define DPRINT(...)
 //#define DPRINTLN(...)
+//#define DBEGIN(...)
 
-//#define DATAPRINT(...) Serial2.print(__VA_ARGS__)
-//#define DATAPRINTLN(...) Serial2.println(__VA_ARGS__)
-//#define DATAWRITE(...) Serial2.write(__VA_ARGS__)
-//#define DATAREAD(...) Serial2.read(__VA_ARGS__)
-//#define DATAREADY(...) Serial2.available()
-//#define DATABEGIN(...) Serial2.begin(__VA_ARGS__)
-#define DATAPRINT(...) Serial.print(__VA_ARGS__)
-#define DATAPRINTLN(...) Serial.println(__VA_ARGS__)
-#define DATAWRITE(...) Serial.write(__VA_ARGS__)
-#define DATAREAD(...) Serial.read(__VA_ARGS__)
-#define DATAREADY(...) Serial.available()
-#define DATABEGIN(...) Serial.begin(__VA_ARGS__)
+#if defined(ARDUINO_ESP32_POE)
+  #define DATAPRINT(...) Serial2.print(__VA_ARGS__)
+  #define DATAPRINTLN(...) Serial2.println(__VA_ARGS__)
+  #define DATAWRITE(...) Serial2.write(__VA_ARGS__)
+  #define DATAREAD(...) Serial2.read(__VA_ARGS__)
+  #define DATAREADY(...) Serial2.available()
+  #define DATABEGIN(...) Serial2.begin(DATARATE, SERIAL_8N1, RX1, TX1, false)
+#else
+  #define DATAPRINT(...) Serial.print(__VA_ARGS__)
+  #define DATAPRINTLN(...) Serial.println(__VA_ARGS__)
+  #define DATAWRITE(...) Serial.write(__VA_ARGS__)
+  #define DATAREAD(...) Serial.read(__VA_ARGS__)
+  #define DATAREADY(...) Serial.available()
+  #define DATABEGIN(...) Serial.begin(DATARATE)
+#endif
 //#define DATAPRINT(...)
 //#define DATAPRINTLN(...)
+// #define DATAWRITE(...)
 //#define DATAREAD(...)
 //#define DATAREADY(...)
 //#define DATABEGIN(...)
