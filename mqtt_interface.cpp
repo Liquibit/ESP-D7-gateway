@@ -2,18 +2,26 @@
 #include "WiFi_interface.h"
 #include <PubSubClient.h>
 #include <ESPmDNS.h>
+#include <WiFiClientSecure.h>
+#include <string>
 
 #include <WebServer.h>
 
 #define MAX_MQTT_LENGTH 250
 
-WiFiClient wifi_client;
+WiFiClientSecure wifi_client;
 PubSubClient mqtt_client(wifi_client);
 
 static bool configuration_changed = true;
 
 void downlink(char* topic, byte* message, unsigned int length) {
   
+}
+
+static bool address_is_ip(char_length_t mqtt_broker) {
+    std::string broker(mqtt_broker.content, *mqtt_broker.length);
+
+    return (broker.find_first_not_of("1234567890.") == std::string::npos);
 }
 
 static bool update_configuration(persisted_data_t persisted_data) {
@@ -29,16 +37,25 @@ static bool update_configuration(persisted_data_t persisted_data) {
     mqtt_client.setCallback(downlink);
     
     IPAddress server_ip;
+    bool use_raw = false;
     server_ip = MDNS.queryHost(persisted_data.mqtt_broker.content);
     if(server_ip.toString().equals("0.0.0.0")) {
-        if(!WiFi_get_ip_by_name(persisted_data.mqtt_broker.content, &server_ip)) {
-            DPRINTLN("No valid IP found for mqtt broker");
-            return false;
+        // Check if the address is only built of numbers and dots, if not use it as url instead.
+        use_raw = !address_is_ip(persisted_data.mqtt_broker);
+        if(!use_raw) {
+            if(!WiFi_get_ip_by_name(persisted_data.mqtt_broker.content, &server_ip)) {
+                DPRINTLN("No valid IP found for mqtt broker");
+                return false;
+            }
         }
     }
     DPRINT("Set mqtt server to ");
     DPRINTLN(server_ip);
-    mqtt_client.setServer(server_ip, *persisted_data.mqtt_port);
+    if(use_raw) {
+        wifi_client.setInsecure();
+        mqtt_client.setServer(persisted_data.mqtt_broker.content, *persisted_data.mqtt_port);
+    } else 
+        mqtt_client.setServer(server_ip, *persisted_data.mqtt_port);
     configuration_changed = false;
     return true;
 }

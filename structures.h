@@ -11,9 +11,9 @@
 #endif
 #define DPRINT(...) Serial.print(__VA_ARGS__)
 #define DPRINTLN(...) Serial.println(__VA_ARGS__)
-//#define DPRINT(...)
-//#define DPRINTLN(...)
-//#define DBEGIN(...)
+// #define DPRINT(...)
+// #define DPRINTLN(...)
+// #define DBEGIN(...)
 
 #if defined(ARDUINO_ESP32_POE)
   #define DATAPRINT(...) Serial2.print(__VA_ARGS__)
