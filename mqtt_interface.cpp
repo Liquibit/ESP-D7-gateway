@@ -3,19 +3,21 @@
 #include <PubSubClient.h>
 #include <ESPmDNS.h>
 #include <WiFiClientSecure.h>
+#include <WiFiClient.h>
 #include <string>
-
 #include <WebServer.h>
 
 #define MAX_MQTT_LENGTH 250
 
-WiFiClientSecure wifi_client;
-PubSubClient mqtt_client(wifi_client);
+// Global clients
+WiFiClient wifi_client;
+WiFiClientSecure wifi_client_secure;
+PubSubClient* mqtt_client = nullptr;
 
 static bool configuration_changed = true;
 
 void downlink(char* topic, byte* message, unsigned int length) {
-  
+
 }
 
 static bool address_is_ip(char_length_t mqtt_broker) {
@@ -26,19 +28,23 @@ static bool address_is_ip(char_length_t mqtt_broker) {
 
 static bool update_configuration(persisted_data_t persisted_data) {
     if(!configuration_changed)
-      return true;
-  
+        return true;
+    
     if(*persisted_data.mqtt_broker.length <= 0)
         return false;
 
     if(!WiFi_interface_is_connected())
-      return false;
+        return false;
 
-    mqtt_client.setCallback(downlink);
-    
+    // Clean up existing client if any
+    if (mqtt_client != nullptr) {
+        delete mqtt_client;
+    }
+
     IPAddress server_ip;
     bool use_raw = false;
     server_ip = MDNS.queryHost(persisted_data.mqtt_broker.content);
+    
     if(server_ip.toString().equals("0.0.0.0")) {
         // Check if the address is only built of numbers and dots, if not use it as url instead.
         use_raw = !address_is_ip(persisted_data.mqtt_broker);
@@ -51,11 +57,22 @@ static bool update_configuration(persisted_data_t persisted_data) {
     }
     DPRINT("Set mqtt server to ");
     DPRINTLN(server_ip);
+
+    // Choose appropriate client based on port
+    if (*persisted_data.mqtt_port == 1883) {
+        mqtt_client = new PubSubClient(wifi_client);
+    } else {
+        wifi_client_secure.setInsecure();
+        mqtt_client = new PubSubClient(wifi_client_secure);
+    }
+
+    mqtt_client->setCallback(downlink);
+
     if(use_raw) {
-        wifi_client.setInsecure();
-        mqtt_client.setServer(persisted_data.mqtt_broker.content, *persisted_data.mqtt_port);
-    } else 
-        mqtt_client.setServer(server_ip, *persisted_data.mqtt_port);
+        mqtt_client->setServer(persisted_data.mqtt_broker.content, *persisted_data.mqtt_port);
+    } else {
+        mqtt_client->setServer(server_ip, *persisted_data.mqtt_port);
+    }
     configuration_changed = false;
     return true;
 }
@@ -67,47 +84,59 @@ bool mqtt_interface_config_changed(persisted_data_t persisted_data) {
 }
 
 bool mqtt_interface_connect(char* client_name, persisted_data_t persisted_data) {
-    // already connected
-    if(mqtt_client.connected())
-        return true;
 
     // configuration valid
     if(!update_configuration(persisted_data))
         return false;
 
+    // Check if client exists
+    if (mqtt_client == nullptr) {
+        return false;
+    }
+
+    // already connected
+    if(mqtt_client->connected())
+        return true;
+
     DPRINTLN("trying to connect to mqtt");
 
-    // connect successfull
-    if(!mqtt_client.connect(client_name, persisted_data.mqtt_user.content, persisted_data.mqtt_password.content))
+    // connect successful
+    if(!mqtt_client->connect(client_name, persisted_data.mqtt_user.content, persisted_data.mqtt_password.content))
         return false;
 
-    //reconnect on subscriptions
     DPRINTLN("connected to MQTT");
     return true;
 }
 
 void mqtt_interface_handle() {
-    mqtt_client.loop();
+    if (mqtt_client != nullptr) {
+        mqtt_client->loop();
+    }
 }
 
 static bool publish_in_parts(char* topic, char* to_publish, uint32_t length) {
+    if (mqtt_client == nullptr) {
+        return false;
+    }
+
     if(length < MAX_MQTT_LENGTH) {
-        if(!mqtt_client.publish(topic, to_publish, true)) {
+        if(!mqtt_client->publish(topic, to_publish, true)) {
             DPRINTLN("publish of single frame failed, abort");
             return false;
         }
         return true;
     }
 
-    if(!mqtt_client.beginPublish(topic, length, true)) {
+    if(!mqtt_client->beginPublish(topic, length, true)) {
         DPRINTLN("begin publish went wrong, abort");
         return false;
     }
     for(uint16_t i = 0; i < length; i += MAX_MQTT_LENGTH) {
         uint16_t remaining_length = length - i;
-        mqtt_client.write((const uint8_t*)&to_publish[i], remaining_length < MAX_MQTT_LENGTH ? remaining_length : MAX_MQTT_LENGTH);
+        mqtt_client->write((const uint8_t*)&to_publish[i], remaining_length < MAX_MQTT_LENGTH ? remaining_length : MAX_MQTT_LENGTH);
     }
-    if(!mqtt_client.endPublish()) {
+    
+    if(!mqtt_client->endPublish()) {
         DPRINTLN("end publish went wrong, abort");
         return false;
     }
